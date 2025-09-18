@@ -1,0 +1,137 @@
+name: "🐛 Bug Report"
+description: Create a new ticket for a bug in AutoDDG.
+title: "🐛 [BUG] - <title>"
+labels:
+  - "bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <p align="center">
+          <img src="https://engineering.nyu.edu/sites/default/files/styles/cinema_small_default_1x/public/2018-06/vida.png" alt="VIDA-NYU / AutoDDG" height="120">
+          <br>
+          <em>AutoDDG — Automated Dataset Description Generation</em>
+        </p>
+
+        **Links**
+        - 📄 Paper (arXiv): https://arxiv.org/abs/2502.01050
+        - 🚀 Quick-start: ./examples/quick_start.ipynb
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Before Submitting"
+      description: Please confirm the following to help us process your issue in a timely manner.
+      options:
+        - label: I have searched existing issues to avoid duplicates.
+          required: true
+        - label: I tried (or reviewed) the quick-start example.
+          required: true
+        - label: I will not include secrets (API keys, tokens, private data) in this report.
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: Please provide a clear and concise description of the bug.
+      placeholder: "What happened? What did you expect to happen?"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: "Reproduction Steps"
+      description: "List the steps to reproduce the bug."
+      value: |
+        1. Install and set up environment
+        2. Run script / function:
+           - ...
+        3. Observe:
+           - ...
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: "Minimal Sample (dataset snippet or link)"
+      description: "Optional but very helpful. Provide a tiny CSV snippet (redact sensitive data) or a public link."
+      placeholder: |
+        column_a,column_b
+        1,2020-01-01
+        2,2020-01-02
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: "### Environment"
+  - type: dropdown
+    id: os
+    attributes:
+      label: "Operating System"
+      options:
+        - "Linux"
+        - "macOS"
+        - "Windows"
+        - "Other"
+  - type: input
+    id: os_other
+    attributes:
+      label: "If Other, specify"
+      placeholder: "e.g., Ubuntu 22.04, WSL2"
+  - type: input
+    id: python
+    attributes:
+      label: "Python Version"
+      placeholder: "e.g., 3.10.13"
+    validations:
+      required: true
+  - type: input
+    id: autoddg_version
+    attributes:
+      label: "AutoDDG Version"
+      placeholder: "e.g., 0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: llm_provider
+    attributes:
+      label: "LLM Provider (if applicable)"
+      options:
+        - "OpenAI"
+        - "DeepInfra (Llama)"
+        - "Other"
+  - type: input
+    id: llm_model
+    attributes:
+      label: "LLM Model (if applicable)"
+      placeholder: "e.g., gpt-4o, gpt-4o-mini, meta-llama/Meta-Llama-3.1-70B-Instruct"
+  - type: dropdown
+    id: module
+    attributes:
+      label: "Area"
+      description: Which area seems affected?
+      options:
+        - "Data profiling"
+        - "Semantic profiler"
+        - "Topic generation"
+        - "UFD generation"
+        - "SFD generation"
+        - "Search / retrieval"
+        - "Evaluation"
+        - "Packaging / install"
+        - "Other"
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs / Traceback"
+      description: "Paste relevant error logs or traceback."
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: "Additional Information"
+      placeholder: "Anything else that could help us debug?"
+  - type: markdown
+    attributes:
+      value: |
+        **Security Note:** Do not share secrets (API keys, tokens, private data) in this report.

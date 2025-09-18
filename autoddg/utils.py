@@ -1,10 +1,11 @@
 from datetime import datetime
+
 from autoddg.generate_description import DatasetDescriptionGenerator
 
 
 def log_print(text, symbol_begin="=", symbol_end=None, num=30):
     print(symbol_begin * num)
-    if text != None:
+    if text is not None:
         print(text)
     if symbol_end:
         print(symbol_end * num)

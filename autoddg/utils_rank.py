@@ -1,15 +1,15 @@
+import math
 from collections import defaultdict
-from rank_bm25 import BM25Okapi
-from sklearn.metrics import precision_score, recall_score
+
 import numpy as np
 import pandas as pd
-import math
+from rank_bm25 import BM25Okapi
 
 
 def extract_query_rel(qrel_file_path):
     query_rel = defaultdict(lambda: defaultdict(list))
     query_rel_list = []
-    with open(qrel_file_path, "r") as f:
+    with open(qrel_file_path) as f:
         lines = f.readlines()[1:]
         for line in lines:
             t, r, d, _ = line.split(",")
@@ -66,8 +66,8 @@ def downstream_task_rank(documents, query, relevances, ks, debug=False):
 
     results = {}
     for k in ks:
-        y_true = [1 if i != 0 else 0 for i in sorted_rel_true[:k]]
-        y_pred = [1 if i != 0 else 0 for i in sorted_rel_test[:k]]
+        # y_true = [1 if i != 0 else 0 for i in sorted_rel_true[:k]]
+        # y_pred = [1 if i != 0 else 0 for i in sorted_rel_test[:k]]
         # precision = precision_score(y_true, y_pred)
         # recall = recall_score(y_true, y_pred)
         ndcg = _compute_ndcg(sorted_rel_true[:k], sorted_rel_test[:k], k)

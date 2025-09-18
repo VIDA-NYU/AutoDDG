@@ -1,11 +1,10 @@
 import nltk
+import numpy as np
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
+from numpy.linalg import norm
 from rank_bm25 import BM25Okapi
 from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
-from numpy.linalg import norm
-from fastembed import SparseTextEmbedding
 
 # Download NLTK stopwords if not already done
 nltk.download("punkt")
@@ -41,8 +40,8 @@ class SimpleSearchEngine:
         values2 = vec2.values
 
         # Create dictionaries for quick lookup
-        dict1 = {idx: val for idx, val in zip(indices1, values1)}
-        dict2 = {idx: val for idx, val in zip(indices2, values2)}
+        dict1 = dict(zip(indices1, values1, strict=False))
+        dict2 = dict(zip(indices2, values2, strict=False))
 
         # Compute dot product
         common_indices = set(indices1).intersection(indices2)
@@ -64,11 +63,14 @@ class SimpleSearchEngine:
         # tokens = [word for word in tokens if word not in self.stop_words]  # Remove stop words
         return tokens
 
-    def index_documents(self, documents, index_fields={"title": 1, "description": 1}):
+    def index_documents(self, documents, index_fields=None):
         """
         Indexes documents.
         documents: List of dictionaries containing 'doc_id', 'title', and 'description'.
         """
+        if index_fields is None:
+            index_fields = {"title": 1, "description": 1}
+
         self.documents = []  # Reset documents
         self.doc_ids = []  # Reset document IDs
         for doc_id in documents:
@@ -133,7 +135,9 @@ class SimpleSearchEngine:
             ]
         # Sort documents by score and return top results
         ranked_docs = sorted(
-            zip(self.doc_ids, scores, self.qrels), key=lambda x: x[1], reverse=True
+            zip(self.doc_ids, scores, self.qrels, strict=False),
+            key=lambda x: x[1],
+            reverse=True,
         )[:size]
         retrieved_relevance = [doc[2] for doc in ranked_docs]
         ideal_relevance = sorted(self.qrels, reverse=True)[:size]

@@ -42,7 +42,7 @@ class DatasetDescriptionGenerator:
         :return: The generated prompt as a string.
         """
 
-        prompt = f"Answer the question using the following information.\n"
+        prompt = "Answer the question using the following information.\n"
 
         # Add dataset sample
         prompt += f"First, consider the dataset sample:\n\n{dataset_sample}\n"
@@ -69,9 +69,9 @@ class DatasetDescriptionGenerator:
             )
 
         prompt += (
-            f"Question: Based on the information above and the requirements, provide a dataset description in sentences. "
-            f"Use only natural, readable sentences without special formatting. "
-            f"\nAnswer:"
+            "Question: Based on the information above and the requirements, provide a dataset description in sentences. "
+            "Use only natural, readable sentences without special formatting. "
+            "\nAnswer:"
         )
 
         return prompt
@@ -346,13 +346,10 @@ class SemanticProfiler:
 
                 # Handle spatial and temporal cases
                 isTemporal = semantic_description["Temporal"].get("isTemporal", False)
-                if (
-                    isTemporal
-                    and semantic_description["Temporal"]["isTemporal"] == True
-                ):
+                if isTemporal and semantic_description["Temporal"]["isTemporal"]:
                     column_summary += f"Contains temporal data (resolution: {semantic_description['Temporal']['resolution']}). "
                 isSpatial = semantic_description["Spatial"].get("isSpatial", False)
-                if isSpatial and semantic_description["Spatial"]["isSpatial"] == True:
+                if isSpatial and semantic_description["Spatial"]["isSpatial"]:
                     column_summary += f"Contains spatial data (resolution: {semantic_description['Spatial']['resolution']}). "
 
                 domain_type = semantic_description.get(
@@ -376,7 +373,7 @@ class SemanticProfiler:
 
                 # Append the summary for this column
                 semantic_summary.append(column_summary)
-            except:
+            except Exception:
                 continue
 
         # Join the semantic summary into a readable format

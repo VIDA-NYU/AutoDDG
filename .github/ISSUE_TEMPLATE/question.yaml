@@ -1,0 +1,61 @@
+name: "❓ Ask a Question"
+description: Ask a question about AutoDDG.
+title: "❓ [QUESTION] - <title>"
+labels:
+  - "question"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <p align="center">
+          <img src="https://engineering.nyu.edu/sites/default/files/styles/cinema_small_default_1x/public/2018-06/vida.png" alt="VIDA-NYU / AutoDDG" height="120">
+          <br>
+          <em>AutoDDG — Automated Dataset Description Generation</em>
+        </p>
+
+        **Links**
+        - 📄 Paper (arXiv): https://arxiv.org/abs/2502.01050
+        - 🚀 Quick-start: ./examples/quick_start.ipynb
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Before Submitting"
+      description: Please confirm the following to help us answer your question efficiently.
+      options:
+        - label: I have searched existing issues to avoid duplicates.
+          required: true
+        - label: I reviewed the quick-start example.
+          required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: "Question"
+      description: Please provide a clear and concise question.
+      placeholder: "Ask away!"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area (optional)"
+      options:
+        - "Data profiling"
+        - "Semantic profiler"
+        - "Topic generation"
+        - "UFD generation"
+        - "SFD generation"
+        - "Search / retrieval"
+        - "Evaluation & benchmarks"
+        - "Packaging / install"
+        - "Examples / notebooks"
+        - "Other"
+  - type: textarea
+    id: context
+    attributes:
+      label: "Context"
+      description: Add any helpful details (error messages, code snippets, dataset snippet/link, environment).
+      placeholder: "Optional but helps us respond faster."
+  - type: markdown
+    attributes:
+      value: |
+        **Security Note:** Do not share secrets (API keys, tokens, private data) in this question.

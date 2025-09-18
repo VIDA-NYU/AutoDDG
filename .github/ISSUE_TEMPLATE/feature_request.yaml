@@ -1,0 +1,95 @@
+name: "💡 Feature Request"
+description: Suggest a new feature or enhancement for AutoDDG.
+title: "💡 [FEAT] - <title>"
+labels:
+  - "feature"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <p align="center">
+          <img src="https://engineering.nyu.edu/sites/default/files/styles/cinema_small_default_1x/public/2018-06/vida.png" alt="VIDA-NYU / AutoDDG" height="120">
+          <br>
+          <em>AutoDDG — Automated Dataset Description Generation</em>
+        </p>
+
+        **Links**
+        - 📄 Paper (arXiv): https://arxiv.org/abs/2502.01050
+        - 🚀 Quick-start: ./examples/quick_start.ipynb
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Before Submitting"
+      description: Please confirm the following to help us process your request efficiently.
+      options:
+        - label: I have checked if this feature already exists or has been requested.
+          required: true
+        - label: I reviewed the quick-start example to ensure this isn’t already supported.
+          required: true
+  - type: textarea
+    id: feature
+    attributes:
+      label: "Feature Description"
+      description: What problem does this solve? What would you like to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: usecases
+    attributes:
+      label: "Use Cases / Impact"
+      description: Explain how this helps (e.g., improves retrieval NDCG, readability of UFDs, quality of SFDs, profiling coverage).
+      placeholder: "Who benefits? In what workflows?"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposed Solution"
+      description: Outline how this could be implemented (high level).
+      placeholder: "API/CLI/design ideas, config flags, prompts, etc."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives Considered"
+      description: What else did you consider and why is the proposal preferable?
+      placeholder: "Optional"
+  - type: textarea
+    id: refs
+    attributes:
+      label: "Examples / References"
+      description: Links, screenshots, or references (including sections of the arXiv paper if relevant).
+      placeholder: "Optional"
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      options:
+        - "Data-driven profiling"
+        - "Semantic profiler"
+        - "Topic generation"
+        - "UFD generation"
+        - "SFD generation"
+        - "Search / retrieval (BM25/SPLADE)"
+        - "Evaluation & benchmarks (ECIR-DDG / NTCIR-DDG)"
+        - "Tooling / CLI"
+        - "Packaging & distribution"
+        - "Examples / notebooks"
+        - "Other"
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: "Willing to Contribute?"
+      options:
+        - "Yes"
+        - "No"
+  - type: textarea
+    id: extra
+    attributes:
+      label: "Additional Information"
+      placeholder: "Anything else we should know?"
+  - type: markdown
+    attributes:
+      value: |
+        **Security Note:** Do not share secrets (API keys, tokens, private data) in this request.

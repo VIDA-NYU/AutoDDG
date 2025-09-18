@@ -1,0 +1,75 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "autoddg"
+description = "Automated Dataset Description Generation using Large Language Models"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Haoxiang Zhang" },
+  { name = "Yurong Liu" },
+  { name = "Wei-Lun (Allen) Hung" },
+  { name = "Aécio Santos" },
+  { name = "Juliana Freire" }
+]
+maintainers = [
+  { name = "Haoxiang Zhang" },
+  { name = "Roque López" },
+  { name = "Simon Provost" }
+]
+keywords = ["datasets", "data profiling", "NLP", "LLM", "data science", "automation"]
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Topic :: Scientific/Engineering",
+]
+
+dynamic = ["version"]
+
+dependencies = [
+  "datamart_profiler==0.11",
+  "fastembed==0.5.1",
+  "nltk==3.9.1",
+  "numpy==2.2.2",
+  "openai==1.61.0",
+  "pandas==2.2.3",
+  "rank-bm25==0.2.2",
+  "scikit-learn==1.6.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/VIDA-NYU/AutoDDG"
+Repository = "https://github.com/VIDA-NYU/AutoDDG"
+Issues = "https://github.com/VIDA-NYU/AutoDDG/issues"
+
+[tool.pdm.version]
+source = "file"
+path = "autoddg/__init__.py"
+
+[tool.pdm.build]
+source-includes = ["README.md", "CHANGELOG.md", "LICENSE", "examples/*.ipynb", "examples/*.csv"]
+excludes = ["**/.pytest_cache"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[dependency-groups]
+dev = [
+  "ruff==0.13.0",
+  "pre-commit>=3.7.0",
+  "pytest>=8.3.0",
+]
+
+[tool.uv]
+default-groups = ["dev"]

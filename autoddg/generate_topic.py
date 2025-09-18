@@ -22,15 +22,13 @@ class DatasetTopicGenerator:
         :return: The generated prompt as a string.
         """
 
-        prompt = f"Using the dataset information provided, generate a concise topic in 2-3 words that best describes the dataset's primary theme:\n\n"
+        prompt = "Using the dataset information provided, generate a concise topic in 2-3 words that best describes the dataset's primary theme:\n\n"
         if original_description:
-            prompt += (
-                f"Title: {title}\n" f"Original Description: {original_description}\n"
-            )
+            prompt += f"Title: {title}\nOriginal Description: {original_description}\n"
         else:
             prompt += f"Title: {title}\n"
 
-        prompt += f"Dataset Sample: {dataset_sample}\n\n" f"Topic (2-3 words):"
+        prompt += f"Dataset Sample: {dataset_sample}\n\nTopic (2-3 words):"
 
         # prompt = (f"Using the dataset information provided, generate a concise topic in 2-3 words that best "
         #           f"describes the dataset's primary theme:\n\n"

@@ -1,5 +1,6 @@
-import datamart_profiler
 from datetime import datetime
+
+import datamart_profiler
 
 
 def dataset_profiler(data_frame):
