@@ -69,7 +69,12 @@ dev = [
   "ruff==0.13.0",
   "pre-commit>=3.7.0",
   "pytest>=8.3.0",
+  "black>=25.1.0",
 ]
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
