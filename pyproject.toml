@@ -33,11 +33,13 @@ dependencies = [
   "datamart_profiler==0.11",
   "fastembed==0.5.1",
   "nltk==3.9.1",
-  "numpy==2.2.2",
+  "numpy>=2.2.2",
   "openai==1.61.0",
-  "pandas==2.2.3",
+  "pandas>=2.2.3",
   "rank-bm25==0.2.2",
   "scikit-learn==1.6.1",
+  "beartype>=0.18.5",
+  "pyyaml==6.0.2",
 ]
 
 [project.urls]
@@ -47,9 +49,10 @@ Issues = "https://github.com/VIDA-NYU/AutoDDG/issues"
 
 [tool.pdm.version]
 source = "file"
-path = "autoddg/__init__.py"
+path = "src/autoddg/__init__.py"
 
 [tool.pdm.build]
+packages = [{include = "autoddg", from = "src"}]
 source-includes = ["README.md", "CHANGELOG.md", "LICENSE", "examples/*.ipynb", "examples/*.csv"]
 excludes = ["**/.pytest_cache"]
 
