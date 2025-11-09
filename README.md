@@ -18,12 +18,10 @@
 
 ## Installation
 
-Clone the repository and install dependencies via [uv (recommended)](https://docs.astral.sh/uv/):
+Via [uv (recommended)](https://docs.astral.sh/uv/):
 
 ```bash
-git clone https://github.com/VIDA-NYU/AutoDDG.git
-cd AutoDDG
-uv sync
+uv add autoddg
 # If you do not have uv installed:
 # * `curl -LsSf https://astral.sh/uv/install.sh | sh`
 # * or look at https://docs.astral.sh/uv/getting-started/installation/
@@ -38,11 +36,8 @@ uv run --with jupyter jupyter lab
 Alternatively, install directly via pip:
 
 ```bash
-pip install git+https://github.com/VIDA-NYU/AutoDDG@main
+pip install autoddg
 ```
-
-> [!CAUTION]
-> This installation method is temporary. A **PyPI release** of `AutoDDG` will soon be available. The `git+https` method will be deprecated in favor of the PyPI index.
 
 ---
 
