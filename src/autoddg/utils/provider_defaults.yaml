@@ -1,0 +1,27 @@
+providers:
+  openai:
+    api_key_env:
+      - OPENAI_API_KEY
+    aliases:
+      - oai
+  anthropic:
+    api_key_env:
+      - ANTHROPIC_API_KEY
+    extra_options:
+      custom_llm_provider: anthropic
+    aliases:
+      - claude
+  mistral:
+    api_key_env:
+      - MISTRAL_API_KEY
+      - MISTRAL_API_TOKEN
+    base_url: https://api.mistral.ai/v1
+  grok:
+    api_key_env:
+      - XAI_API_KEY
+      - GROK_API_KEY
+    base_url: https://api.x.ai/v1
+    extra_options:
+      custom_llm_provider: xai
+    aliases:
+      - xai

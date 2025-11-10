@@ -5,6 +5,7 @@ from .description import DatasetDescriptionGenerator, SearchFocusedDescription
 from .evaluation import GPTEvaluator, LLaMAEvaluator
 from .profiling import SemanticProfiler, profile_dataset
 from .topic import DatasetTopicGenerator
+from .utils import LLMClientFactory
 
 __version__ = "0.1.0"
 
@@ -14,6 +15,7 @@ __all__ = [
     "DatasetTopicGenerator",
     "GPTEvaluator",
     "LLaMAEvaluator",
+    "LLMClientFactory",
     "SearchFocusedDescription",
     "SemanticProfiler",
     "profile_dataset",
