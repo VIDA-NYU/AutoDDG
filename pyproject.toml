@@ -34,12 +34,15 @@ dependencies = [
   "fastembed==0.5.1",
   "nltk==3.9.1",
   "numpy>=2.2.2",
-  "openai==1.61.0",
+  "litellm==1.79.3",
+  "openai==2.7.1",
   "pandas>=2.2.3",
   "rank-bm25==0.2.2",
   "scikit-learn==1.6.1",
   "beartype>=0.18.5",
+  "thefuzz[speedup]>=0.22.1",
   "pyyaml==6.0.2",
+  "matplotlib>=3.10.7",
 ]
 
 [project.urls]
