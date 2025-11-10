@@ -45,20 +45,15 @@ pip install autoddg
 
 A very basic way to use `AutoDDG`:
 
-
-## Getting Started
-
-The simplest way to use AutoDDG is to create an instance and generate a dataset description:
-
 ```python
-from openai import OpenAI
 from autoddg import AutoDDG
 
-# Setup OpenAI client
-client = OpenAI(api_key="sk-...")
-
-# Initialize AutoDDG
-autoddg = AutoDDG(client=client, model_name="gpt-4o-mini")
+# Create an AutoDDG pipeline and bind it to OpenAI
+autoddg = AutoDDG(description_words=100).with_provider(
+    provider="openai",
+    model_name="gpt-4o-mini",
+    # api_key="sk-...",  # Optional if OPENAI_API_KEY is exported i.e. $> export OPENAI_API_KEY="sk-..."
+)
 
 # Generate description from a small CSV sample
 sample_csv = """Case_ID,Age,BMI
@@ -66,15 +61,105 @@ C3L-00004,72,22.8
 C3L-00010,30,34.15
 """
 
-prompt, description = autoddg.generate_description(dataset_sample=sample_csv)
+prompt, description = autoddg.describe_dataset(dataset_sample=sample_csv)
 
 print(description)
-# >>> This dataset contains medical information about patients, including their unique Case_ID, Age, and Body Mass Index (BMI). etc.
+# >>> This dataset contains medical information about patients, including their unique Case_ID, Age, and Body Mass Index (BMI).
 ```
+<details>
+<summary><strong>📣 Wants To Try Other LLMs (Plug-and-Play)? 👇</strong></summary>
+
+AutoDDG speaks OpenAI-compatible APIs via <a href="https://github.com/BerriAI/litellm">LiteLLM</a>.
+
+**Built-in providers**
+
+| Provider    | Env var(s)                               | Aliases |
+|-------------|-------------------------------------------|---------|
+| OpenAI      | `OPENAI_API_KEY`                          | `oai`   |
+| Anthropic   | `ANTHROPIC_API_KEY`                       | `claude`|
+| Mistral     | `MISTRAL_API_KEY`, `MISTRAL_API_TOKEN`    | —       |
+| Grok (xAI)  | `XAI_API_KEY`, `GROK_API_KEY`             | `xai`   |
+
+---
+
+### 1) Discover providers & models
+```python
+from autoddg import AutoDDG
+
+print(AutoDDG.list_providers())                 # ('anthropic','grok','mistral','openai',...)
+print(AutoDDG.list_model_names("openai")[:8])   # sample of known model ids
+print(AutoDDG.describe_provider("grok"))        # env vars, base_url, aliases, options
+```
+
+---
+
+### 2) Switch provider (one line)
+```python
+from autoddg import AutoDDG
+
+autoddg = AutoDDG(description_words=100).with_provider(
+    provider="anthropic",            # alias "claude" also works
+    model_name="claude-3-sonnet-20241022",
+    # api_key="...",                # optional if ANTHROPIC_API_KEY is set in env
+)
+```
+
+Use a proxy/custom gateway:
+```python
+autoddg = AutoDDG().with_provider(
+    provider="openai",
+    model_name="gpt-4o-mini",
+    api_key="sk-...",                               # overrides env
+    factory_options={"base_url": "https://my-proxy.example/v1"},
+)
+```
+
+---
+
+### 3) Add a new provider
+
+**A. Via config (maintainers / forks) —— Happy to receive Pull Requests!**
+Start to edit: `src/autoddg/utils/provider_defaults.yaml`
+```yaml
+providers:
+  local-gateway:
+    api_key_env: [LOCAL_GATEWAY_KEY]
+    base_url: https://llm.example.com/v1
+    aliases: [lgw]
+    # extra_options:
+    #   custom_llm_provider: openai
+```
+
+**B. Register at runtime (no file edits)**
+```python
+from autoddg import AutoDDG
+from autoddg.utils import LLMClientFactory
+
+factory = LLMClientFactory()
+factory.register_provider(
+    "local-gateway",
+    api_key_env=["LOCAL_GATEWAY_KEY"],
+    base_url="https://llm.example.com/v1",
+    aliases=["lgw"],
+)
+
+autoddg = AutoDDG().with_provider(
+    provider="local-gateway",
+    model_name="llama-3.1-70b",   # whatever your endpoint serves
+    factory=factory,
+)
+```
+
+— You can use provider aliases (`oai`, `claude`, `xai`) anywhere a provider is accepted.
+— Prefer `AutoDDG.list_model_names("<provider>")` to pick exact model strings.
+
+</details>
 
 ### Quick Jupyter Notebook Start
 
 For a much better introduction, we **highly recommend** starting with the [quick_start notebook with an example dataset](./examples/quick_start.ipynb).
+
+If you want to explore different LLM providers interactively, check out the [multi-provider playground notebook](./examples/provider_playground.ipynb). It walks through configuring API keys, using the shared `AutoDDG` helpers, and comparing outputs from providers such as OpenAI, Anthropic, Mistral, and Grok.
 
 ---
 
