@@ -1,9 +1,6 @@
 <div align="center">
   <h1>AutoDDG</h1>
   <h3><i>Automated Dataset Description Generation using Large Language Models</i></h3>
-  <h4><i>submitted to VLDB 2025</i></h4>
-  <p>
-    <a href="https://arxiv.org/abs/2502.01050">ArXiv Extended Paper Version</a>
   </p>
   <p>
     <img src="https://img.shields.io/static/v1?label=UV&message=compliant&color=2196F3&style=for-the-badge" alt="UV">
@@ -11,6 +8,7 @@
     <img src="https://img.shields.io/badge/Black-formatted-000000?style=for-the-badge&logo=python&logoColor=white" alt="Black formatted">
     <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python >= 3.10">
     <img src="https://img.shields.io/badge/OpenAI-Model-blue?style=for-the-badge&logo=openai" alt="OpenAI">
+    <img src="https://img.shields.io/badge/arXiv-2502.01050-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv">
   </p>
 </div>
 
