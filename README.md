@@ -3,12 +3,12 @@
   <h3><i>Automated Dataset Description Generation using Large Language Models</i></h3>
   </p>
   <p>
+    <a href="https://arxiv.org/abs/2502.01050"><img src="https://img.shields.io/badge/arXiv-2502.01050-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a>
     <img src="https://img.shields.io/static/v1?label=UV&message=compliant&color=2196F3&style=for-the-badge" alt="UV">
     <img src="https://img.shields.io/static/v1?label=RUFF&message=lint%2Fformat&color=9C27B0&style=for-the-badge&logo=ruff&logoColor=white" alt="Ruff">
     <img src="https://img.shields.io/badge/Black-formatted-000000?style=for-the-badge&logo=python&logoColor=white" alt="Black formatted">
     <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python >= 3.10">
     <img src="https://img.shields.io/badge/OpenAI-Model-blue?style=for-the-badge&logo=openai" alt="OpenAI">
-    <img src="https://img.shields.io/badge/arXiv-2502.01050-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv">
   </p>
 </div>
 
