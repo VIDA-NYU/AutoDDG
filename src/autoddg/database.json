@@ -1,0 +1,72 @@
+{
+    
+    
+    "3222451": {
+        "dataset_name": "The FluPRINT database",
+        "description" : "The FluPRINT represents fully integrated and normalized immunology measurements from eight clinical studies taken from 740 individuals undergoing influenza vaccination with inactivated or live attenuated seasonal influenza vaccines from 2007 to 2015 at the Stanford Human Immune Monitoring Center. The FluPRINT dataset contains information on more than 3,000 parameters measured using mass cytometry, flow cytometry, phosphorylation-specific cytometry, multiplex cytokine assays, clinical lab tests (hormones and complete blood count), serological profiling and virological tests. In the dataset, vaccine protection is measured using a hemagglutination inhibition (HAI) assay, and following FDA guidelines individuals are marked as high or low responders depending on the HAI antibody titers after vaccination.",
+        "dataset_path": "src/autoddg/related/data/fluprint_export.csv",
+        "related_paper_path": "src/autoddg/related/papers/3222451.pdf"
+    
+    },
+    
+    "4916206": {
+        "dataset_name": "CODE-15%: a large scale annotated dataset of 12-lead ECGs",
+        "dataset_path": "src/autoddg/related/data/code-15.csv",
+        "related_paper_path": "src/autoddg/related/papers/code15.pdf",
+        "description": "A dataset of 12-lead ECGs with annotations. The dataset contains 345,779 exams from 233,770 patients. It was obtained through stratified sampling from the CODE dataset (15% of the patients). The data was collected by the Telehealth Network of Minas Gerais between 2010 and 2016.\n\nThis repository contains the file `exams.csv` and the files `exams_part{i}.zip` for i = 0, 1, 2, ... 17.\n\n`exams.csv` contains the following columns:\n- \"exam_id\": ID used for identifying the exam\n- \"age\": patient age in years at the moment of the exam\n- \"is_male\": true if the patient is male\n- \"nn_predicted_age\": age predicted by a neural network (as described in the paper \"Deep neural network estimated electrocardiographic-age as a mortality predictor\")\n- \"1dAVb\": presence of 1st-degree AV block\n- \"RBBB\": presence of right bundle branch block\n- \"LBBB\": presence of left bundle branch block\n- \"SB\": presence of sinus bradycardia\n- \"AF\": presence of atrial fibrillation\n- \"ST\": presence of sinus tachycardia\n- \"patient_id\": ID used for identifying the patient\n- \"normal_ecg\": true if the automatic annotation system labels it as normal\n- \"death\": true if the patient dies in the follow-up period (only filled in the first exam per patient)\n- \"timey\": if the patient dies, this is time to death; otherwise, follow-up time (only in first exam per patient)\n- \"trace_file\": identifies the HDF5 file containing the corresponding ECG trace"
+    },
+
+    "11284018": {
+        "dataset_name": "T1GDUJA: Glucose dataset of a patient with type 1 diabetes mellitus",
+        "dataset_path": "src/autoddg/related/data/glucose_data.csv",
+        "related_paper_path": "src/autoddg/related/papers/Toward_an_Interpretable_Continuous_Glucose_Monitoring_Data_Modeling.pdf",
+        "description": "The data are recorded in a single file entitled glucose_data.csv. This file establishes a Comma Separated Values (CSV) format. The following characteristics can be found in each row of the dataset: date: establishes the moment at which the glucose level was measured. The field is formatted as follows: \"YYYYY-MM-DD HH:MM:SS.ssss\" (UTC time zone). sgv: glucose levels measured in mg/dL. utcOffset: offset in minutes from the time zone where data were collected (Madrid GMT+1 and GMT+2). The dataset contains a total of 41702 samples with an average of 185 samples per day. A summary of the samples per day can be found in the attached image."
+    },
+    "14052302": {
+        "dataset_name": "GRPM Dataset",
+        "dataset_path": "src/autoddg/related/data/BLCA_gene_exp.csv",
+        "related_paper_path": "src/autoddg/related/papers/grmp-paper.pdf",
+        "description": ""
+    },
+    
+    "7537164": {
+        "dataset_name": "Variation in Leaf Reflectance Spectra Across the California Flora Partitioned by Evolutionary History, Geographic Origin, and Deep Time",
+        "dataset_path": "src/autoddg/related/data/Griffith-etal-2022-Tilden-ASD-spectra-corrected-means-continuum-removal.csv",
+        "related_paper_path": "src/autoddg/related/papers/New_Phytologist-2023-Donnelly-Evolutionary_lineage_explains_trait_variation_among _75_coexisting_grass_species.pdf",
+        "description": ""
+    },
+    
+    "14998163": {
+        "dataset_name": "A comprehensive database of expert-curated occurrences for the genus Carex L. (Cyperaceae)",
+        "dataset_path": "src/autoddg/related/data/ecd_dataset_v1.0.0.csv",
+        "related_paper_path": "src/autoddg/related/papers/mcaf262.pdf",
+        "description": ""
+    },
+    "11303604": {
+        "dataset_name": "TetrapodTraits Database",
+        "dataset_path": "src/autoddg/related/data/TetrapodTraits_1.0.0.csv",
+        "related_paper_path": "src/autoddg/related/papers/journal.pbio.3002658.pdf",
+        "description": ""
+    },
+    "11071944": {
+        "dataset_name": "leafnp_data",
+        "dataset_path": "src/autoddg/related/data/leafnp_tian_et_al.csv",
+        "related_paper_path": "src/autoddg/related/papers/s41467-024-49665-4.pdf",
+        "description": ""
+    },
+   
+    "1251813": { 
+        "dataset_name": "Summary-level data from meta-analysis of fat distribution phenotypes in UK Biobank and GIANT",
+        "dataset_path": "src/autoddg/related/data/1251813.csv",
+        "related_paper_path": "src/autoddg/related/papers/elife-75317-v2.pdf",
+        "description": ""
+    }, 
+
+
+     "7651129": {
+        "dataset_name": "Coronavirus disease (COVID-19) case data - South Africa",
+        "dataset_path": "https://zenodo.org/records/7651129",
+        "related_paper_path": "https://openalex.org/W3014444510",
+        "description": ""
+    }
+}
