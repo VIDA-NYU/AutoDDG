@@ -4,8 +4,8 @@ venv/
 .env
 
 # Ignore data
-#src/autoddg/related/data
-#src/autoddg/related/papers
+src/autoddg/related/data
+src/autoddg/related/papers
 examples/legacy
 
 # Ignore macOS system files
