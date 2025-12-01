@@ -64,17 +64,42 @@
 
      "5026943": { 
         "dataset_name": "BioTime",
-        "dataset_path": "src/autoddg/related/data/BioTIMEMetadata_24_06_2021.csv",
+        "dataset_path": "src/autoddg/related/data/BioTIMEQuery_24_06_2021.csv",
         "related_paper_path": "src/autoddg/related/papers/10_24072_pcjournal_131.pdf",
         "description": ""
     }, 
 
 
-
-     "7651129": {
+    "7651129": {
         "dataset_name": "Coronavirus disease (COVID-19) case data - South Africa",
         "dataset_path": "https://zenodo.org/records/7651129",
         "related_paper_path": "https://openalex.org/W3014444510",
         "description": ""
+    },
+
+     "15363279": {
+        "dataset_name": "European database of processing factors for pesticides residues in food",
+        "dataset_path": "src/autoddg/related/data/data_2.csv",
+        "related_paper_path": "src/autoddg/related/papers/15363279.pdf",
+        "description": "EFSA is regularly evaluating pesticide occurrence data in food generated under the official monitoring programs of Member States with respect to consumer exposure and risk assessment; most of these data refer to raw commodities (RAC) because maximum residue levels established under European legislation reflect pesticide residues only in the RAC; however, food processing operations can have decisive effects on pesticide residue levels and therefore consumer exposure, and this database has been developed to compile validated processing factors for pesticide residues in food in line with the EFSA food classification and description system (FoodEx2)."
+    },
+
+
+    "4296944": {
+        "dataset_name": "FCCdb: A large-scale manually curated database of food chemical compositions",
+        "dataset_path": "src/autoddg/related/data/FCCdb_FINAL_LIST.csv",
+        "related_paper_path": "src/autoddg/related/papers/4296944.pdf",
+        "description": "The Food Contact Chemicals database (FCCdb) is a compilation of information on intentionally added food contact chemicals, extracted from publicly available sources such as legislation on food contact materials and industry inventories for different types of food contact materials; where available, information from selected sources on hazardous properties and commercial use has been included as well; further details on the information sources used are given in the READ ME worksheet of the excel file; the FCCdb intends to provide an overview of the diversity of food contact chemicals and their hazardous properties; further details on the compilation and analysis of this dataset can be found in the manuscript Overview of intentionally used food contact chemicals and their hazards, by Ksenia J. Groh, Birgit Geueke, Olwenn Martin, Maricel Maffini, and Jane Muncke, published in Environmental International on November 30, 2020 (DOI 10.1016/j.envint.2020.106225)."
+    }, 
+
+    "7657580": {
+        "dataset_name": "Fish eDNA detections in ports mirror fishing fleet activities and highlight the spread of non-indigenous species in the Mediterranean Sea. Environmental DNA Metabarcoding DATASET",
+        "dataset_path": "src/autoddg/related/data/aglieri_full_dataset.csv",
+        "related_paper_path": "src/autoddg/related/papers/aglieri.pdf",
+        "description": "Environmental DNA metabarcoding data set; environmental samples were collected in 2018 (one sample replicate of 2 L surface water) and 2019 (four replicates of 1 L surface water) from several Mediterranean ports, and data were generated using 12S rRNA and mitochondrial COI; for each sampling campaign (2018 and 2019) and marker, two sheets are presented (with the same numeration): the first represents all ASV/MOTUs after the bioinformatics pipelines, the second shows the curated assignment; the last two sheets are the OTU tables (presenceabsence)."
     }
+
+    
+
+
 }
