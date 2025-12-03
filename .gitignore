@@ -2,6 +2,8 @@
 venv/
 .venv/
 .env
+.pkl
+prompt-experiments/profile_cache/
 
 # Ignore data
 src/autoddg/related/data
