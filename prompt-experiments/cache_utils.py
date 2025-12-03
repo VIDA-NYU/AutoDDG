@@ -2,6 +2,8 @@ import os
 import pickle
 import pandas as pd
 from typing import Dict, Any, Optional
+from autoddg.utils import get_sample
+
 
 # --- CONFIGURATION & PATHS (Based on user-provided logic) ---
 # NOTE: '__file__' is not defined in Jupyter/interactive environments, so we use
@@ -20,26 +22,26 @@ print(f"[SETUP] Cache Directory: {ABSOLUTE_CACHE_DIR}")
 # --- MOCK DEFINITIONS FOR INDEPENDENCE ---
 # You will replace these with your actual imports in your real project.
 
-class MockAutoDDG:
-    """Mock class simulating the profiling and analysis engine."""
-    def profile_dataframe(self, df):
-        print("  [DDG] Running basic and structural profiling.")
-        # Return mock profiles
-        return {"col_count": len(df.columns), "df_info": "mocked"}, {"row_count": len(df), "missing": 0}
+# class MockAutoDDG:
+#     """Mock class simulating the profiling and analysis engine."""
+#     def profile_dataframe(self, df):
+#         print("  [DDG] Running basic and structural profiling.")
+#         # Return mock profiles
+#         return {"col_count": len(df.columns), "df_info": "mocked"}, {"row_count": len(df), "missing": 0}
         
-    def analyze_semantics(self, sample_df):
-        print("  [DDG] Running semantic analysis.")
-        return {"semantic_score": 0.85, "sample_analysis": "mocked"}
+#     def analyze_semantics(self, sample_df):
+#         print("  [DDG] Running semantic analysis.")
+#         return {"semantic_score": 0.85, "sample_analysis": "mocked"}
         
-    def generate_topic(self, dataset_name, data_file, dataset_sample):
-        print("  [DDG] Generating data topic.")
-        return f"Auto-Generated Topic: {dataset_name}"
+#     def generate_topic(self, dataset_name, data_file, dataset_sample):
+#         print("  [DDG] Generating data topic.")
+#         return f"Auto-Generated Topic: {dataset_name}"
 
-def get_sample(df, sample_size):
-    """Mock function to get a sample from the DataFrame."""
-    # This is a placeholder for your actual data sampling logic
-    print(f"  [HELPER] Getting a sample of size {sample_size}.")
-    return df.head(sample_size), ["Sample data point 1", "Sample data point 2"]
+# def get_sample(df, sample_size):
+#     """Mock function to get a sample from the DataFrame."""
+#     # This is a placeholder for your actual data sampling logic
+#     print(f"  [HELPER] Getting a sample of size {sample_size}.")
+#     return df.head(sample_size), ["Sample data point 1", "Sample data point 2"]
 
 # --- STANDALONE CACHE UTILITY FUNCTIONS ---
 
@@ -112,7 +114,7 @@ def generate_and_cache_profiles(
     semantic_profile = auto_ddg.analyze_semantics(sample_df)
     
     # 3. Topic Generation
-    data_topic = auto_ddg.generate_topic(dataset_name, data_file, dataset_sample)
+    data_topic = auto_ddg.generate_topic(dataset_name, None, dataset_sample)\
     
     profiles = {
         "basic_profile": basic_profile,
