@@ -123,6 +123,34 @@ Extract from this paper: What did this dataset enable the researchers to do?
 **JSON:**
 """
 
+Research_focus_long_v2= """You are an expert data science assistant helping researchers decide if the dataset "{dataset_name}" described in the TEXT is right for their project.
+
+Your task is to **extract key structured information** about the dataset's utility, uniqueness, and challenges directly from the paper.
+
+**EXAMPLE OF DESIRED OUTPUT:**
+{{
+  "enabled_research": "What **scientific question** or **scale of analysis** did the dataset uniquely permit? (e.g., Large-scale analysis of gene expression patterns across tissue types)",
+  "practical_use": "What **common ML/Data task** (e.g., pre-training, fine-tuning, benchmarking) is it suitable for?",
+  "why_useful": "What **unique feature** or data property (e.g., scale, annotations, time span, source) makes it valuable?",
+  "requirements_or_setup": "What are the necessary **prerequisites** (e.g., hardware, license, custom code, data use agreement) for a user?",
+  "strengths_shown": "What positive claims did the authors or users make about the dataset's qualities? (e.g., Rich annotations enabled fine-grained classification)",
+  "limitations_found": "What weaknesses or challenges were identified? (e.g., Small sample size limited statistical power)",
+  "usage_quotes": [
+    "Extract 1-3 short, impactful quotes from the paper that describe the dataset's value or necessity."
+  ]
+}}
+
+**INSTRUCTIONS & CONSTRAINTS:**
+1. **Strictly** generate only the final JSON object, without any surrounding text or explanation.
+2. The keys in the JSON output **must** exactly match the keys in the EXAMPLE.
+3. If a specific piece of information is **not found** in the TEXT, the corresponding value must be an **empty string** (`""`) or an **empty list** (`[]`) for lists. **Do not guess or invent information.**
+
+**TEXT:**
+{paper_text}
+
+**JSON:**
+"""
+
 Research_focus_short = """Extract how "{dataset_name}" was used to help researchers understand what this dataset is good for.
 
 {{
@@ -147,5 +175,6 @@ ALL_RELATED_WORK_PROMPTS = {
     "V2_Hybrid": PROMPT_V2_HYBRID,
     "Structured_v1": PROMPT_STRUCTURED_V1,
     "Research_longv1": Research_focus_long,
+    "Research_longv2":Research_focus_long_v2,
     "Research_shortv1": Research_focus_short,
 }
