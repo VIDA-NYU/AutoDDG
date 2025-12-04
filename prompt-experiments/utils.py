@@ -82,7 +82,8 @@ def run_description_experiment(
     RESULTS_FILE: str,         # Absolute path to results CSV
     PROMPTS_TO_TEST: Dict[str, str], # Dictionary of prompts for augmented test
     load_profile_from_cache: Any, # Function to load profiles
-    log_result: Any            # Function to log results
+    log_result: Any,            # Function to log results
+    generateOriginal: bool = False
 ) -> None:
     """
     Runs baseline and augmented description generation and evaluation for a 
@@ -122,33 +123,33 @@ def run_description_experiment(
     # -----------------------------------------------------------------
     ## 1. Baseline (Vanilla AutoDDG) Description
     # -----------------------------------------------------------------
+    if generateOriginal:
+        print("\n--- Running Baseline (Vanilla) Description ---")
 
-    print("\n--- Running Baseline (Vanilla) Description ---")
+        prompt_baseline, description_baseline = auto_ddg.describe_dataset(
+            dataset_sample=dataset_sample,
+            dataset_profile=basic_profile,
+            use_profile=True,
+            semantic_profile=semantic_profile,
+            use_semantic_profile=True,
+            data_topic=data_topic,
+            use_topic=True,
+            use_related_profile=False
+        )
 
-    prompt_baseline, description_baseline = auto_ddg.describe_dataset(
-        dataset_sample=dataset_sample,
-        dataset_profile=basic_profile,
-        use_profile=True,
-        semantic_profile=semantic_profile,
-        use_semantic_profile=True,
-        data_topic=data_topic,
-        use_topic=True,
-        use_related_profile=False
-    )
+        baseline_scores = auto_ddg.evaluate_description(description_baseline)
+        print(f"Baseline Scores: {baseline_scores}")
 
-    baseline_scores = auto_ddg.evaluate_description(description_baseline)
-    print(f"Baseline Scores: {baseline_scores}")
+        log_result(
+            prompt_name="N/A", 
+            description_type="Vanilla_AutoDDG", 
+            description=description_baseline, 
+            raw_scores=baseline_scores,
+            dataset_name=DATASET_NAME,
+            file_path=RESULTS_FILE
+        )
 
-    log_result(
-        prompt_name="N/A", 
-        description_type="Vanilla_AutoDDG", 
-        description=description_baseline, 
-        raw_scores=baseline_scores,
-        dataset_name=DATASET_NAME,
-        file_path=RESULTS_FILE
-    )
-
-    print("-" * 50)
+        print("-" * 50)
 
     # -----------------------------------------------------------------
     ## 2. Augmented (AutoDDG + Related Work) Description
@@ -164,7 +165,6 @@ def run_description_experiment(
             pdf_path=PAPER_FILE,
             dataset_name=DATASET_NAME,
             extraction_prompt=extraction_prompt,
-            max_pages=10
         )
         print(f"Related Work Summary: {related_profile['summary'][:150]}...")
 

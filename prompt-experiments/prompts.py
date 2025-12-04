@@ -57,9 +57,47 @@ RESEARCH PAPER TEXT:
 {paper_text}
 """
 
+PROMPT_STRUCTURED_V1 = """
+    Extract information about the dataset "{dataset_name}" from this research paper.
+   
+    *CRITICAL*: Only extract information EXPLICITLY stated in the text.
+    For any aspect not mentioned, write "Not mentioned in paper."
+   
+    Return a JSON object with this structure:
+    {{
+      "domain_and_applications": {{
+        "field": "string or null",
+        "research_questions": ["list of strings"],
+        "confidence": "high/medium/low"
+      }},
+      "usage_in_study": {{
+        "how_used": "string or null",
+        "analyses_performed": ["list"],
+        "key_findings": ["list"],
+        "direct_quotes": ["relevant quotes with context"]
+      }},
+      "dataset_characteristics": {{
+        "collection_method": "string or null",
+        "unique_features": ["list"],
+        "preprocessing": "string or null",
+        "size_or_scope": "string or null"
+      }},
+      "limitations": {{
+        "identified_limitations": ["list"],
+        "challenges": ["list"],
+        "biases_or_caveats": ["list"]
+      }},
+      "citation_context": ["Direct sentences mentioning the dataset"]
+    }}
+   
+    *PAPER TEXT:*
+    {paper_text}
+"""
+
 # Store prompts in a dictionary for easy iteration
 ALL_RELATED_WORK_PROMPTS = {
     "V0_Original": PROMPT_V0_ORIGINAL,
     "V1_Revised": PROMPT_V1_REVISED,
     "V2_Hybrid": PROMPT_V2_HYBRID,
+    "Structured_v1": PROMPT_STRUCTURED_V1
 }
