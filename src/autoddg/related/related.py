@@ -412,6 +412,48 @@ class RelatedWorkProfiler:
         except Exception as e:
             raise Exception(f"Error calling LLM for extraction: {e}")
     
+    # Insert this method into your RelatedWorkProfiler class
+
+    def score_chunk_relevance(self, chunk_text: str, dataset_name: str) -> bool:
+        """Uses LLM to determine if a chunk is semantically relevant to the dataset."""
+        
+        # Use a lightweight model for this scoring task
+        # IMPORTANT: Make sure this model is suitable for JSON or boolean output
+        scoring_model = self.model_name # You can choose a faster/cheaper model here if desired
+
+        prompt = f"""
+        Analyze the following text chunk from a research paper. The focus is on the dataset named '{dataset_name}'.
+        
+        Chunk:
+        ---
+        {chunk_text}
+        ---
+        
+        Is this chunk semantically relevant to the dataset? Relevance means it discusses the dataset's use, characteristics, results, or limitations. It is NOT relevant if it is a list of references, acknowledgments, or a general background statement.
+        
+        Respond with only a single word: YES or NO.
+        """
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=scoring_model,
+                messages=[
+                    {"role": "system", "content": "You are a text relevance classifier. Respond only with 'YES' or 'NO'."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.0,
+            )
+            
+            response_content = response.choices[0].message.content.strip().upper()
+            
+            # Check for explicit YES response
+            return response_content == "YES"
+            
+        except Exception as e:
+            # Fallback in case of API error
+            print(f"Error scoring chunk: {e}. Defaulting to non-relevant.")
+            return False
+        
     @beartype
     def analyze_paper(
         self,
@@ -444,17 +486,27 @@ class RelatedWorkProfiler:
             chunk_overlap=chunk_overlap,
         )
 
-        anchor_ids = self.find_anchor_chunks(
-            chunks=original_chunks,
-            dataset_name=dataset_name,
-            min_tokens_to_match=2 # Use your existing robust logic
-        )
+        relevant_chunks: List[str] = []
+        
+        for i, chunk in enumerate(original_chunks):
+            # Call the new LLM rater method
+            if self.score_chunk_relevance(chunk_text=chunk, dataset_name=dataset_name):
+                relevant_chunks.append(chunk)
+                
+        # Use the filtered chunks as the context blocks
+        logical_context_blocks = relevant_chunks
+        
+        # anchor_ids = self.find_anchor_chunks(
+        #     chunks=original_chunks,
+        #     dataset_name=dataset_name,
+        #     min_tokens_to_match=2 # Use your existing robust logic
+        # )
 
-        logical_context_blocks = self.get_logical_context_blocks(
-            all_chunks=original_chunks,
-            anchor_chunk_ids=anchor_ids,
-            context_window_size=context_window_size
-        )
+        # logical_context_blocks = self.get_logical_context_blocks(
+        #     all_chunks=original_chunks,
+        #     anchor_chunk_ids=anchor_ids,
+        #     context_window_size=context_window_size
+        # )
 
         if not logical_context_blocks:
             print("Warning: No relevant chunks found. Falling back to using the full text.")

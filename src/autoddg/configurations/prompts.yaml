@@ -19,12 +19,10 @@ dataset_description:
   topic_instruction: |
     Moreover, the dataset topic is: {data_topic}. Based on this topic, please add sentence(s) describing what this dataset can be used for.
   related_work_instruction: |
-    Additionally, research literature provides this context about the dataset:
+    Additionally, research literature provides this summary about the dataset:
     {related_profile}
     
-    Based on this information, please add sentence(s) describing the insights about this dataset from this research (such as actual usage, findings, or limitations).
-  closing_instruction: |
-    Question: Based on the information above and the requirements, provide a dataset description in sentences. Use only natural, readable sentences without special formatting.
+    Based on the information within this context, please high-value sentence(s) to the description describing the most important insights provided by the research, such as how the dataset was acquired, what its key variables are, how it was used in the study, and any specific limitations identified by the paper.    
 
     Answer:
   system_message: |
