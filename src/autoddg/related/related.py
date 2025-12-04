@@ -307,7 +307,7 @@ class RelatedWorkProfiler:
             
         Returns:
             Dictionary containing the related work profile with keys:
-                - summary: Extracted summary about the dataset
+                - summary: Extracted summary about the datraset
                 - dataset_name: Name of the dataset
                 - source_length: Character count of source paper
         """
