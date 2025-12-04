@@ -67,72 +67,11 @@ def compute_bertscore(reference: str, prediction: str):
 
 
 
-# ============================================
-# LLM-AS-A-JUDGE (REFERENCE-FREE)
-# ============================================
-
-LLM_JUDGE_PROMPT = """
-You are an expert evaluator of dataset descriptions.
-
-Rate the QUALITY of the following dataset description on a scale of 1–10
-for each dimension below.
-
-Dataset Description:
----
-{description}
----
-
-Rate the following:
-1. Accuracy (does it correctly describe the dataset?)
-2. Coverage (does it mention important dataset properties, metadata, variables, goals?)
-3. Usefulness (does it help a researcher understand how to use the dataset?)
-4. Limitations (does it describe constraints, caveats, biases, missingness?)
-
-Respond ONLY as a JSON dictionary with fields:
-{
-  "accuracy": <number>,
-  "coverage": <number>,
-  "usefulness": <number>,
-  "limitations": <number>,
-  "overall_score": <number>
-}
-"""
-
-def evaluate_llm_judge(description: str, client, model_name):
-    """Use an LLM to provide a JSON evaluation of description quality."""
-    prompt = LLM_JUDGE_PROMPT.format(description=description)
-
-    resp = client.chat.completions.create(
-        model=model_name,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    content = resp.choices[0].message.content
-
-    try:
-        parsed = json.loads(content)
-        return parsed
-    except json.JSONDecodeError:
-        # fallback: no evaluation
-        return {
-            "accuracy": None,
-            "coverage": None,
-            "usefulness": None,
-            "limitations": None,
-            "overall_score": None
-        }
-
-
-import json
-
 def extract_dataset_profile(description_text: str, client, model_name: str):
     """
-    Extract a structured profile of a dataset description using your LLM client.
-    
-    This is REFERENCE-FREE — it analyzes ONLY the generated description.
-    It outputs the exact JSON schema required by DatasetDescriptionCoverage().
+    Extract a structured profile of the dataset description using your LLM client.
+    It outputs the exact JSON schema required by CoverageScorer().
     """
-
     prompt = f"""
 You are a dataset documentation analysis assistant.
 
@@ -256,11 +195,5 @@ def evaluate_all(row, client,model_name):
     for dim, val in coverage_results["dimension_scores"].items():
         metrics[f"coverage_{dim}"] = val
 
-    # --------------------------
-    # LLM-as-a-Judge (reference-free)
-    # --------------------------
-    judge_scores = evaluate_llm_judge(generated_desc, client, model_name)
-    for key, val in judge_scores.items():
-        metrics[f"judge_{key}"] = val
 
     return metrics
