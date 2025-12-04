@@ -94,10 +94,58 @@ PROMPT_STRUCTURED_V1 = """
     {paper_text}
 """
 
+Research_focus_long = """You are helping researchers decide if "{dataset_name}" is right for their project.
+
+Extract from this paper: What did this dataset enable the researchers to do?
+
+**EXAMPLE:**
+{{
+  "enabled_research": "Large-scale analysis of gene expression patterns across tissue types",
+  "practical_use": "Pre-training for downstream medical imaging tasks",
+  "why_useful": "Only dataset with longitudinal patient data spanning 5+ years",
+  "requirements_or_setup": "Requires institutional data use agreement; preprocessed with custom pipeline",
+  "strengths_shown": "Rich annotations enabled fine-grained classification; diverse sample prevented overfitting",
+  "limitations_found": "Small sample size limited statistical power; class imbalance required resampling",
+  "usage_quotes": [
+    "crucial for validating our hypothesis",
+    "enabled comparison across multiple domains"
+  ]
+}}
+
+**GOAL:** Help a researcher understand:
+- What kinds of research is this dataset good for?
+- What makes it useful/unique?
+- What challenges might they face?
+
+**TEXT:**
+{paper_text}
+
+**JSON:**
+"""
+
+Research_focus_short = """Extract how "{dataset_name}" was used to help researchers understand what this dataset is good for.
+
+{{
+  "what_it_enabled": "What research or analysis did this dataset make possible?",
+  "why_chosen": "Why was this dataset suitable for their needs?",
+  "how_used": "Specifically how did they use it (training/testing/validation/benchmark)?",
+  "strengths": "What advantages or benefits did they mention?",
+  "challenges": "Any limitations or difficulties they encountered?",
+  "quotes": ["2-4 short quotes under 15 words each showing dataset usage"]
+}}
+
+**TEXT:**
+{paper_text}
+
+**JSON:**
+"""
+
 # Store prompts in a dictionary for easy iteration
 ALL_RELATED_WORK_PROMPTS = {
     "V0_Original": PROMPT_V0_ORIGINAL,
     "V1_Revised": PROMPT_V1_REVISED,
     "V2_Hybrid": PROMPT_V2_HYBRID,
-    "Structured_v1": PROMPT_STRUCTURED_V1
+    "Structured_v1": PROMPT_STRUCTURED_V1,
+    "Research_longv1": Research_focus_long,
+    "Research_shortv1": Research_focus_short,
 }
