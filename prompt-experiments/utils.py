@@ -165,7 +165,6 @@ def run_description_experiment(
             pdf_path=PAPER_FILE,
             dataset_name=DATASET_NAME,
             extraction_prompt=extraction_prompt,
-            max_pages=10
         )
         print(f"Related Work Summary: {related_profile['summary'][:150]}...")
 
