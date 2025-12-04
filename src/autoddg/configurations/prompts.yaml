@@ -24,6 +24,9 @@ dataset_description:
     
     Based on the information within this context, please high-value sentence(s) to the description describing the most important insights provided by the research, such as how the dataset was acquired, what its key variables are, how it was used in the study, and any specific limitations identified by the paper.    
 
+  closing_instruction: |
+    Question: Based on the information above and the requirements, provide a dataset description in sentences. Use only natural, readable sentences without special formatting.
+
     Answer:
   system_message: |
     You are an assistant for a dataset search engine. Your goal is to improve the readability of dataset descriptions for dataset search engine users.
