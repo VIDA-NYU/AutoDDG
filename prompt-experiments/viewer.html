@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDG Analysis Viewer</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .score-box {
+            @apply p-2 rounded-lg text-sm font-semibold flex flex-col items-center justify-center transition duration-300;
+        }
+        .score-label {
+            @apply text-xs font-normal text-gray-500;
+        }
+        .content-card {
+            @apply bg-white p-6 rounded-xl shadow-lg border border-gray-100;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-gray-900">Dataset Description Comparator</h1>
+            <p class="mt-2 text-lg text-gray-600">Analyze Vanilla vs. Augmented descriptions and their grounding profiles.</p>
+        </header>
+
+        <!-- File Input and Control Panel -->
+        <div id="controlPanel" class="mb-8 p-6 bg-white rounded-xl shadow-2xl sticky top-0 z-10">
+            <!-- File Selector Section -->
+            <div class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50">
+                <label for="fileInput" class="block text-lg font-bold text-blue-700 mb-2">1. Upload your CSV Results File:</label>
+                <input type="file" id="fileInput" accept=".csv" class="w-full p-3 border border-blue-400 bg-white rounded-lg shadow-sm cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200">
+                <p id="fileStatus" class="mt-2 text-sm text-gray-600 font-medium">Please select your `results.csv` file to begin.</p>
+            </div>
+
+            <!-- Dataset and Prompt Selectors -->
+            <div id="selectorContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 hidden">
+                <!-- Dataset Selector -->
+                <div>
+                    <label for="datasetSelector" class="block text-sm font-medium text-gray-700 mb-2">2. Select Dataset Name:</label>
+                    <select id="datasetSelector" onchange="loadDataset()" class="w-full p-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out">
+                        <option value="">-- Please Select a Dataset --</option>
+                    </select>
+                </div>
+
+                <!-- Prompt Type Selector -->
+                <div>
+                    <label for="promptTypeSelector" class="block text-sm font-medium text-gray-700 mb-2">3. Select Prompt Type (Augmented):</label>
+                    <select id="promptTypeSelector" onchange="showAugmentedResult()" disabled class="w-full p-3 border border-gray-300 bg-gray-100 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out disabled:opacity-60">
+                        <option value="">-- Select an Augmented Prompt --</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Results Area -->
+        <div id="resultsArea" class="space-y-10 hidden">
+            <div id="vanillaSection" class="content-card">
+                <h2 class="text-2xl font-bold text-gray-800 border-b pb-3 mb-4">Vanilla AutoDDG Description (Baseline)</h2>
+                <div id="vanillaScores" class="flex space-x-4 mb-4">
+                    <!-- Scores will be injected here -->
+                </div>
+                <p id="vanillaDescription" class="text-gray-700 italic">Select a dataset to view the baseline description.</p>
+            </div>
+
+            <div id="augmentedSection" class="content-card">
+                <h2 class="text-2xl font-bold text-blue-600 border-b pb-3 mb-4 flex justify-between items-center">
+                    <span>Augmented Description and Profile</span>
+                    <span id="augmentedPromptType" class="text-base font-medium text-blue-400 bg-blue-50 px-3 py-1 rounded-full"></span>
+                </h2>
+                <div id="augmentedScores" class="flex space-x-4 mb-4">
+                    <!-- Scores will be injected here -->
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <!-- Augmented Description Panel -->
+                    <div class="border p-4 rounded-lg bg-blue-50 border-blue-200">
+                        <h3 class="text-xl font-semibold text-blue-700 mb-3">Augmented Description</h3>
+                        <p id="augmentedDescription" class="text-gray-700">Select a prompt type above to see the augmented results.</p>
+                    </div>
+
+                    <!-- Related Profile JSON Panel -->
+                    <div class="border p-4 rounded-lg bg-gray-50 border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-3">Related Profile JSON (Grounding Data)</h3>
+                        <pre id="relatedProfile" class="whitespace-pre-wrap font-mono text-sm bg-gray-100 p-3 rounded-md text-gray-800 max-h-96 overflow-auto">
+{
+    "message": "The grounding profile will appear here."
+}
+                        </pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let parsedData = [];
+        let groupedData = {};
+
+        // Function to convert CSV string to a structured JS object
+        function parseCsv(csvString) {
+            // Updated regex to handle quoted fields robustly
+            const lines = csvString.trim().split(/\r?\n/);
+            if (lines.length < 2) throw new Error("CSV contains no data rows.");
+            
+            // Regex to split by comma, handling commas inside quotes
+            const splitter = /,(?=(?:[^"]*"[^"]*")*[^"]*$)/; 
+            const headers = lines[0].split(splitter).map(h => h.trim().replace(/^"|"$/g, ''));
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(splitter).map(v => v.trim().replace(/^"|"$/g, ''));
+                if (values.length === headers.length) {
+                    let row = {};
+                    headers.forEach((header, index) => {
+                        let value = values[index];
+                        // Convert score fields to numbers
+                        if (['Completeness_Score', 'Conciseness_Score', 'Readability_Score'].includes(header)) {
+                            row[header] = parseInt(value) || 0;
+                        } else {
+                            row[header] = value;
+                        }
+                    });
+                    data.push(row);
+                }
+            }
+            if (data.length === 0) throw new Error("No parsable data rows found.");
+            return data;
+        }
+
+        // Function to group data by Dataset_Name
+        function groupData(data) {
+            const groups = {};
+            data.forEach(item => {
+                const datasetName = item.Dataset_Name;
+                if (!groups[datasetName]) {
+                    groups[datasetName] = {
+                        vanilla: null,
+                        augmented: []
+                    };
+                }
+
+                if (item.Description_Source === 'Vanilla_AutoDDG') {
+                    groups[datasetName].vanilla = item;
+                } else if (item.Description_Source === 'Augmented_AutoDDG') {
+                    groups[datasetName].augmented.push(item);
+                }
+            });
+            return groups;
+        }
+
+        // Helper to generate a score box HTML
+        function generateScoreBox(label, score, color) {
+            return `
+                <div class="score-box bg-${color}-100 text-${color}-800 shadow-md">
+                    <span class="text-3xl">${score}</span>
+                    <span class="score-label text-${color}-600">${label}</span>
+                </div>
+            `;
+        }
+        
+        // --- RENDERING FUNCTIONS ---
+
+        function populateDatasetSelector() {
+            const selector = document.getElementById('datasetSelector');
+            selector.innerHTML = '<option value="">-- Please Select a Dataset --</option>'; 
+            
+            Object.keys(groupedData).forEach(datasetName => {
+                const option = document.createElement('option');
+                option.value = datasetName;
+                option.textContent = datasetName;
+                selector.appendChild(option);
+            });
+            
+            // Show selectors and results area
+            document.getElementById('selectorContainer').classList.remove('hidden');
+            document.getElementById('resultsArea').classList.remove('hidden');
+            document.getElementById('fileStatus').textContent = `Successfully loaded ${Object.keys(groupedData).length} unique datasets.`;
+        }
+
+        function loadDataset() {
+            const datasetName = document.getElementById('datasetSelector').value;
+            const promptSelector = document.getElementById('promptTypeSelector');
+
+            // Reset Augmented section
+            resetAugmentedSection();
+
+            if (!datasetName) {
+                document.getElementById('vanillaDescription').textContent = 'Select a dataset to view the baseline description.';
+                document.getElementById('vanillaScores').innerHTML = '';
+                promptSelector.innerHTML = '<option value="">-- Select an Augmented Prompt --</option>';
+                promptSelector.disabled = true;
+                return;
+            }
+
+            const data = groupedData[datasetName];
+            
+            // 1. Load Vanilla Section
+            if (data.vanilla) {
+                document.getElementById('vanillaDescription').textContent = data.vanilla.Description_Text;
+                document.getElementById('vanillaScores').innerHTML = `
+                    ${generateScoreBox('Completeness', data.vanilla.Completeness_Score, 'green')}
+                    ${generateScoreBox('Conciseness', data.vanilla.Conciseness_Score, 'indigo')}
+                    ${generateScoreBox('Readability', data.vanilla.Readability_Score, 'red')}
+                `;
+            } else {
+                document.getElementById('vanillaDescription').textContent = 'Vanilla description not available for this dataset.';
+                document.getElementById('vanillaScores').innerHTML = '';
+            }
+
+            // 2. Populate Augmented Selector
+            promptSelector.innerHTML = '<option value="">-- Select an Augmented Prompt --</option>';
+            if (data.augmented.length > 0) {
+                data.augmented.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.Prompt_Type;
+                    // Display scores in the option text for quick comparison
+                    option.textContent = `${item.Prompt_Type} (C:${item.Completeness_Score}, N:${item.Conciseness_Score}, R:${item.Readability_Score})`; 
+                    promptSelector.appendChild(option);
+                });
+                promptSelector.disabled = false;
+            } else {
+                promptSelector.disabled = true;
+            }
+        }
+
+        function resetAugmentedSection() {
+            document.getElementById('augmentedPromptType').textContent = '';
+            document.getElementById('augmentedScores').innerHTML = '';
+            document.getElementById('augmentedDescription').textContent = 'Select a prompt type above to see the augmented results.';
+            document.getElementById('relatedProfile').textContent = '{ "message": "The grounding profile will appear here." }';
+        }
+
+        function showAugmentedResult() {
+            const datasetName = document.getElementById('datasetSelector').value;
+            const promptType = document.getElementById('promptTypeSelector').value;
+
+            if (!datasetName || !promptType) {
+                resetAugmentedSection();
+                return;
+            }
+
+            const data = groupedData[datasetName];
+            const augmentedEntry = data.augmented.find(item => item.Prompt_Type === promptType);
+
+            if (augmentedEntry) {
+                document.getElementById('augmentedPromptType').textContent = augmentedEntry.Prompt_Type;
+                document.getElementById('augmentedScores').innerHTML = `
+                    ${generateScoreBox('Completeness', augmentedEntry.Completeness_Score, 'green')}
+                    ${generateScoreBox('Conciseness', augmentedEntry.Conciseness_Score, 'indigo')}
+                    ${generateScoreBox('Readability', augmentedEntry.Readability_Score, 'red')}
+                `;
+                document.getElementById('augmentedDescription').textContent = augmentedEntry.Description_Text;
+                
+                try {
+                    const profile = JSON.parse(augmentedEntry.Related_Profile_JSON);
+                    document.getElementById('relatedProfile').textContent = JSON.stringify(profile, null, 2);
+                } catch (e) {
+                    document.getElementById('relatedProfile').textContent = augmentedEntry.Related_Profile_JSON || 'Error parsing JSON or profile missing.';
+                    console.error("JSON Parse Error:", e);
+                }
+
+            } else {
+                resetAugmentedSection();
+            }
+        }
+
+        // Function to process and initialize the viewer with the CSV content
+        function processData(csvString) {
+            try {
+                parsedData = parseCsv(csvString);
+                groupedData = groupData(parsedData);
+                populateDatasetSelector();
+            } catch (e) {
+                console.error("Error processing CSV data:", e);
+                document.getElementById('fileStatus').textContent = `Error: Could not process the CSV file. Details: ${e.message}`;
+                document.getElementById('selectorContainer').classList.add('hidden');
+                document.getElementById('resultsArea').classList.add('hidden');
+            }
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('fileInput').addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    document.getElementById('fileStatus').textContent = `Loading file: ${file.name}...`;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        processData(e.target.result);
+                    };
+                    reader.readAsText(file);
+                }
+            });
+
+            // Initial state: hide selectors and results until file is loaded
+            document.getElementById('selectorContainer').classList.add('hidden');
+            document.getElementById('resultsArea').classList.add('hidden');
+            resetAugmentedSection();
+        });
+
+    </script>
+</body>
+</html>

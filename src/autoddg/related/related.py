@@ -10,6 +10,7 @@ import yaml
 from beartype import beartype
 from openai import OpenAI
 from pypdf import PdfReader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 @beartype
@@ -73,7 +74,43 @@ class RelatedWorkProfiler:
                 # Return empty dict if no config found
                 print(f"Warning: prompts.yaml not found at {prompts_path}, using empty config")
                 return {}
-                
+    
+    @beartype
+    def chunk_text(
+        self,
+        paper_text: str,
+        chunk_size: int = 4000,
+        chunk_overlap: int = 200,
+    ) -> list[str]:
+        """
+        Splits the full paper text into context-preserving chunks.
+        
+        Args:
+            paper_text: The full text content of the research paper.
+            chunk_size: The desired maximum size of each chunk (in characters).
+            chunk_overlap: The number of characters to overlap between adjacent chunks.
+            
+        Returns:
+            A list of text strings (chunks).
+        """
+        # Use standard academic separators to preserve paragraphs and sentences
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separators=[
+                "\n\n",  # Try to split by paragraph first
+                "\n",    # Then by newline
+                " ",     # Then by space
+                "",      # Fallback by character
+            ],
+            length_function=len,
+            is_separator_regex=False,
+        )
+        
+        chunks = splitter.split_text(paper_text)
+        print(f"Original text split into {len(chunks)} chunks.")
+        return chunks
+
     @beartype
     def extract_text_from_pdf(
         self,
@@ -166,7 +203,8 @@ class RelatedWorkProfiler:
                         "content": formatted_prompt
                     }
                 ],
-                temperature=0.3,
+                temperature=0.1,
+                # response_format={"type": "json_object"}
             )
             
             summary = response.choices[0].message.content.strip()
