@@ -187,8 +187,8 @@ def run_description_experiment(
         
         log_result(
             prompt_name=prompt_name, 
-            description_type="Augmented_AutoDDG", 
-            description=description_augmented, 
+            description_type="Augmented_AutoDDG",
+            description=description_augmented,  
             raw_scores=augmented_scores,
             dataset_name=DATASET_NAME,
             file_path=RESULTS_FILE,
