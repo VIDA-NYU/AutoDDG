@@ -345,7 +345,10 @@ class RelatedWorkProfiler:
             extraction_prompt: Custom extraction prompt. If None, uses default.
            
         Returns:
-            Dictionary containing the extracted profile
+            Dictionary containing the related work profile with keys:
+                - summary: Extracted summary about the datraset
+                - dataset_name: Name of the dataset
+                - source_length: Character count of source paper
         """
         # Use custom prompt if provided, otherwise use default
         prompt_template = extraction_prompt if extraction_prompt else self.default_extraction_prompt
