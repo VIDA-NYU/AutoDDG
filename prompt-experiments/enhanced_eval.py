@@ -67,7 +67,7 @@ def compute_bertscore(reference: str, prediction: str):
 
 
 
-def extract_dataset_profile(description_text: str, client, model_name: str):
+def extract_summary_profile(description_text: str, client, model_name: str):
     """
     Extract a structured profile of the dataset description using your LLM client.
     It outputs the exact JSON schema required by CoverageScorer().
@@ -83,7 +83,7 @@ Return ONLY valid JSON:
 
 {{
   "basic_info": {{
-    "dataset_name": null,
+    
     "domain_or_field": null,
     "primary_purpose": null
   }},
@@ -121,9 +121,6 @@ DESCRIPTION:
 Return JSON ONLY. No extra text.
 """
 
-    # -------------------------------
-    # RUN THE MODEL USING YOUR CLIENT
-    # -------------------------------
     response = client.chat.completions.create(
         model=model_name,
         messages=[{"role": "user", "content": prompt}],
@@ -131,12 +128,10 @@ Return JSON ONLY. No extra text.
     )
 
     raw = response.choices[0].message.content
-
-
-    # -------------------------------
-    # SAFE JSON PARSING
-    # -------------------------------
+    
     try:
+        print(json.loads(raw))
+        
         return json.loads(raw)
     except json.JSONDecodeError:
         try:
@@ -151,6 +146,8 @@ Return JSON ONLY. No extra text.
                 "usage_context": {},
                 "quality_and_limitations": {}
             }
+            
+            
 
 
 # ============================================
@@ -181,11 +178,13 @@ def evaluate_all(row, client,model_name):
     # --------------------------
     # Coverage score (reference-free)
     # --------------------------
-    extraction_result = extract_dataset_profile(
+    extraction_result = extract_summary_profile(
         description_text=generated_desc,
         client=client,               
         model_name=model_name
     )
+    
+    print(json.dumps(extraction_result, indent=2))
     coverage = CoverageScorer()
     coverage_results = coverage.calculate_coverage(extraction_result)
 
