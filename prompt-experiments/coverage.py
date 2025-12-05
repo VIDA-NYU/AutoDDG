@@ -3,9 +3,6 @@ import json
 from typing import Dict, List
 import numpy as np
 from collections import Counter
-from sentence_transformers import SentenceTransformer
-
-_model = SentenceTransformer("all-MiniLM-L6-v2") 
 
 ##---- Coverage Score 
 
