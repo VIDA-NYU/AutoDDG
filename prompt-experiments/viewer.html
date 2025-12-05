@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DDG Analysis Viewer</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -18,11 +17,15 @@
         }
     </script>
     <style>
+        /* Updated styles for smaller, more numerous score boxes */
         .score-box {
-            @apply p-2 rounded-lg text-sm font-semibold flex flex-col items-center justify-center transition duration-300;
+            @apply p-2 rounded-lg text-sm font-semibold flex flex-col items-center justify-center transition duration-300 min-w-[70px]; 
         }
         .score-label {
-            @apply text-xs font-normal text-gray-500;
+            @apply text-xs font-normal text-gray-500 text-center leading-tight mt-1; /* Adjusted for better wrap */
+        }
+        .score-value {
+            @apply text-xl sm:text-2xl; /* Made the score value slightly larger */
         }
         .content-card {
             @apply bg-white p-6 rounded-xl shadow-lg border border-gray-100;
@@ -37,18 +40,14 @@
             <p class="mt-2 text-lg text-gray-600">Analyze Vanilla vs. Augmented descriptions and their grounding profiles.</p>
         </header>
 
-        <!-- File Input and Control Panel -->
         <div id="controlPanel" class="mb-8 p-6 bg-white rounded-xl shadow-2xl sticky top-0 z-10">
-            <!-- File Selector Section -->
             <div class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50">
                 <label for="fileInput" class="block text-lg font-bold text-blue-700 mb-2">1. Upload your CSV Results File:</label>
                 <input type="file" id="fileInput" accept=".csv" class="w-full p-3 border border-blue-400 bg-white rounded-lg shadow-sm cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200">
                 <p id="fileStatus" class="mt-2 text-sm text-gray-600 font-medium">Please select your `results.csv` file to begin.</p>
             </div>
 
-            <!-- Dataset and Prompt Selectors -->
             <div id="selectorContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 hidden">
-                <!-- Dataset Selector -->
                 <div>
                     <label for="datasetSelector" class="block text-sm font-medium text-gray-700 mb-2">2. Select Dataset Name:</label>
                     <select id="datasetSelector" onchange="loadDataset()" class="w-full p-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out">
@@ -56,7 +55,6 @@
                     </select>
                 </div>
 
-                <!-- Prompt Type Selector -->
                 <div>
                     <label for="promptTypeSelector" class="block text-sm font-medium text-gray-700 mb-2">3. Select Prompt Type (Augmented):</label>
                     <select id="promptTypeSelector" onchange="showAugmentedResult()" disabled class="w-full p-3 border border-gray-300 bg-gray-100 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out disabled:opacity-60">
@@ -66,13 +64,11 @@
             </div>
         </div>
 
-        <!-- Comparison Results Area -->
         <div id="resultsArea" class="space-y-10 hidden">
             <div id="vanillaSection" class="content-card">
                 <h2 class="text-2xl font-bold text-gray-800 border-b pb-3 mb-4">Vanilla AutoDDG Description (Baseline)</h2>
-                <div id="vanillaScores" class="flex space-x-4 mb-4">
-                    <!-- Scores will be injected here -->
-                </div>
+                <div id="vanillaScores" class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3 mb-6">
+                    </div>
                 <p id="vanillaDescription" class="text-gray-700 italic">Select a dataset to view the baseline description.</p>
             </div>
 
@@ -81,18 +77,15 @@
                     <span>Augmented Description and Profile</span>
                     <span id="augmentedPromptType" class="text-base font-medium text-blue-400 bg-blue-50 px-3 py-1 rounded-full"></span>
                 </h2>
-                <div id="augmentedScores" class="flex space-x-4 mb-4">
-                    <!-- Scores will be injected here -->
-                </div>
+                <div id="augmentedScores" class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3 mb-6">
+                    </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                    <!-- Augmented Description Panel -->
                     <div class="border p-4 rounded-lg bg-blue-50 border-blue-200">
                         <h3 class="text-xl font-semibold text-blue-700 mb-3">Augmented Description</h3>
                         <p id="augmentedDescription" class="text-gray-700">Select a prompt type above to see the augmented results.</p>
                     </div>
 
-                    <!-- Related Profile JSON Panel -->
                     <div class="border p-4 rounded-lg bg-gray-50 border-gray-200">
                         <h3 class="text-xl font-semibold text-gray-700 mb-3">Related Profile JSON (Grounding Data)</h3>
                         <pre id="relatedProfile" class="whitespace-pre-wrap font-mono text-sm bg-gray-100 p-3 rounded-md text-gray-800 max-h-96 overflow-auto">
@@ -110,16 +103,45 @@
         let parsedData = [];
         let groupedData = {};
 
+        // Define all 16 score fields, their labels, and their colors/formats
+        const scoreDefinitions = [
+            // Original Scores (Integers) - FIXED: Use Math.round to display cleanly, read as float
+            { key: 'Completeness_Score', label: 'Completeness', color: 'green', format: (s) => s != null ? Math.round(s) : 0 },
+            { key: 'Conciseness_Score', label: 'Conciseness', color: 'indigo', format: (s) => s != null ? Math.round(s) : 0 },
+            { key: 'Readability_Score', label: 'Readability', color: 'red', format: (s) => s != null ? Math.round(s) : 0 },
+
+            // New BERT Scores (Floats)
+            { key: 'bert_precision', label: 'BERT Precision', color: 'yellow', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'bert_recall', label: 'BERT Recall', color: 'yellow', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'bert_f1', label: 'BERT F1', color: 'yellow', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+
+            // New ROUGE Scores (Floats)
+            { key: 'rouge1', label: 'ROUGE-1', color: 'purple', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'rouge2', label: 'ROUGE-2', color: 'purple', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'rougeL', label: 'ROUGE-L', color: 'purple', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'rougeLsum', label: 'ROUGE-Lsum', color: 'purple', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+
+            // New Coverage Scores (Floats)
+            { key: 'coverage_overall', label: 'Coverage Overall', color: 'cyan', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'coverage_basic_info', label: 'Coverage Basic', color: 'blue', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'coverage_data_characteristics', label: 'Coverage Data', color: 'blue', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'coverage_provenance', label: 'Coverage Provenance', color: 'blue', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'coverage_usage_context', label: 'Coverage Usage', color: 'blue', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+            { key: 'coverage_quality_and_limitations', label: 'Coverage Quality', color: 'blue', format: (s) => s != null ? (parseFloat(s) * 100).toFixed(1) + '%' : 'N/A' },
+        ];
+
+
         // Function to convert CSV string to a structured JS object
         function parseCsv(csvString) {
-            // Updated regex to handle quoted fields robustly
             const lines = csvString.trim().split(/\r?\n/);
             if (lines.length < 2) throw new Error("CSV contains no data rows.");
             
-            // Regex to split by comma, handling commas inside quotes
             const splitter = /,(?=(?:[^"]*"[^"]*")*[^"]*$)/; 
             const headers = lines[0].split(splitter).map(h => h.trim().replace(/^"|"$/g, ''));
             const data = [];
+
+            // Define all headers that should be parsed as numbers (floats)
+            const numberHeaders = scoreDefinitions.map(def => def.key);
 
             for (let i = 1; i < lines.length; i++) {
                 const values = lines[i].split(splitter).map(v => v.trim().replace(/^"|"$/g, ''));
@@ -127,9 +149,11 @@
                     let row = {};
                     headers.forEach((header, index) => {
                         let value = values[index];
-                        // Convert score fields to numbers
-                        if (['Completeness_Score', 'Conciseness_Score', 'Readability_Score'].includes(header)) {
-                            row[header] = parseInt(value) || 0;
+                        
+                        // FIXED: All 16 scores, including the original three, are now consistently parsed as floats 
+                        // from their dedicated CSV columns.
+                        if (numberHeaders.includes(header)) {
+                            row[header] = parseFloat(value); 
                         } else {
                             row[header] = value;
                         }
@@ -162,14 +186,30 @@
             return groups;
         }
 
-        // Helper to generate a score box HTML
-        function generateScoreBox(label, score, color) {
-            return `
-                <div class="score-box bg-${color}-100 text-${color}-800 shadow-md">
-                    <span class="text-3xl">${score}</span>
-                    <span class="score-label text-${color}-600">${label}</span>
-                </div>
-            `;
+        // Helper to generate ALL score boxes HTML from a data item
+        function generateScoreBoxes(item) {
+            let html = '';
+
+            if (!item) return '';
+
+            scoreDefinitions.forEach(def => {
+                const rawValue = item[def.key];
+                let scoreDisplay;
+                try {
+                    // Use the defined format function
+                    scoreDisplay = def.format(rawValue); 
+                } catch (e) {
+                    scoreDisplay = 'N/A';
+                }
+                
+                html += `
+                    <div class="score-box bg-${def.color}-100 text-${def.color}-800 shadow-md">
+                        <span class="score-value">${scoreDisplay}</span>
+                        <span class="score-label text-${def.color}-600">${def.label}</span>
+                    </div>
+                `;
+            });
+            return html;
         }
         
         // --- RENDERING FUNCTIONS ---
@@ -211,11 +251,8 @@
             // 1. Load Vanilla Section
             if (data.vanilla) {
                 document.getElementById('vanillaDescription').textContent = data.vanilla.Description_Text;
-                document.getElementById('vanillaScores').innerHTML = `
-                    ${generateScoreBox('Completeness', data.vanilla.Completeness_Score, 'green')}
-                    ${generateScoreBox('Conciseness', data.vanilla.Conciseness_Score, 'indigo')}
-                    ${generateScoreBox('Readability', data.vanilla.Readability_Score, 'red')}
-                `;
+                // Use the new comprehensive score box generator
+                document.getElementById('vanillaScores').innerHTML = generateScoreBoxes(data.vanilla);
             } else {
                 document.getElementById('vanillaDescription').textContent = 'Vanilla description not available for this dataset.';
                 document.getElementById('vanillaScores').innerHTML = '';
@@ -227,8 +264,13 @@
                 data.augmented.forEach(item => {
                     const option = document.createElement('option');
                     option.value = item.Prompt_Type;
-                    // Display scores in the option text for quick comparison
-                    option.textContent = `${item.Prompt_Type} (C:${item.Completeness_Score}, N:${item.Conciseness_Score}, R:${item.Readability_Score})`; 
+                    
+                    // FIXED: Ensure we round the scores for display in the option text
+                    const completeness = item.Completeness_Score != null ? Math.round(item.Completeness_Score) : 0;
+                    const conciseness = item.Conciseness_Score != null ? Math.round(item.Conciseness_Score) : 0;
+                    const readability = item.Readability_Score != null ? Math.round(item.Readability_Score) : 0;
+                    
+                    option.textContent = `${item.Prompt_Type} (C:${completeness}, N:${conciseness}, R:${readability})`; 
                     promptSelector.appendChild(option);
                 });
                 promptSelector.disabled = false;
@@ -258,11 +300,9 @@
 
             if (augmentedEntry) {
                 document.getElementById('augmentedPromptType').textContent = augmentedEntry.Prompt_Type;
-                document.getElementById('augmentedScores').innerHTML = `
-                    ${generateScoreBox('Completeness', augmentedEntry.Completeness_Score, 'green')}
-                    ${generateScoreBox('Conciseness', augmentedEntry.Conciseness_Score, 'indigo')}
-                    ${generateScoreBox('Readability', augmentedEntry.Readability_Score, 'red')}
-                `;
+                // Use the new comprehensive score box generator
+                document.getElementById('augmentedScores').innerHTML = generateScoreBoxes(augmentedEntry);
+
                 document.getElementById('augmentedDescription').textContent = augmentedEntry.Description_Text;
                 
                 try {
