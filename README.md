@@ -9,6 +9,7 @@
     <img src="https://img.shields.io/badge/Black-formatted-000000?style=for-the-badge&logo=python&logoColor=white" alt="Black formatted">
     <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python >= 3.10">
     <img src="https://img.shields.io/badge/OpenAI-Model-blue?style=for-the-badge&logo=openai" alt="OpenAI">
+    <img src="https://img.shields.io/badge/Local-LLM-green?style=for-the-badge&logo=huggingface" alt="Local LLM">
   </p>
 </div>
 
@@ -39,6 +40,14 @@ Alternatively, install directly via pip:
 pip install git+https://github.com/VIDA-NYU/AutoDDG@main
 ```
 
+**For local LLM support** (Qwen, Llama, etc.), install with optional dependencies:
+
+```bash
+pip install git+https://github.com/VIDA-NYU/AutoDDG@main[local-llm]
+# or
+pip install git+https://github.com/VIDA-NYU/AutoDDG@main transformers torch
+```
+
 > [!CAUTION]
 > This installation method is temporary. A **PyPI release** of `AutoDDG` will soon be available. The `git+https` method will be deprecated in favor of the PyPI index.
 
@@ -46,12 +55,11 @@ pip install git+https://github.com/VIDA-NYU/AutoDDG@main
 
 ## Getting Started
 
-A very basic way to use `AutoDDG`:
+AutoDDG supports both **API-based** (OpenAI) and **local LLM** (transformers) modes.
 
+### Using OpenAI API
 
-## Getting Started
-
-The simplest way to use AutoDDG is to create an instance and generate a dataset description:
+The simplest way to use AutoDDG is with an OpenAI API client:
 
 ```python
 from openai import OpenAI
@@ -69,10 +77,41 @@ C3L-00004,72,22.8
 C3L-00010,30,34.15
 """
 
-prompt, description = autoddg.generate_description(dataset_sample=sample_csv)
+prompt, description = autoddg.describe_dataset(dataset_sample=sample_csv)
 
 print(description)
 # >>> This dataset contains medical information about patients, including their unique Case_ID, Age, and Body Mass Index (BMI). etc.
+```
+
+### Using Local LLM
+
+AutoDDG also supports local LLMs via transformers (Qwen, Llama, etc.):
+
+```python
+from autoddg import AutoDDG
+
+# Initialize AutoDDG with local LLM
+autoddg = AutoDDG(
+    client=None,
+    model_name="Qwen/Qwen2.5-7B-Instruct",  # or any HuggingFace model
+    use_local_llm=True,
+    local_llm_device="cuda",  # or "cpu" if no GPU
+    local_llm_dtype="bfloat16",  # or "float16", "float32"
+)
+
+# Generate description (same API as above)
+sample_csv = """Case_ID,Age,BMI
+C3L-00004,72,22.8
+C3L-00010,30,34.15
+"""
+
+prompt, description = autoddg.describe_dataset(dataset_sample=sample_csv)
+print(description)
+```
+
+**Note:** For local LLM support, ensure you have installed the optional dependencies:
+```bash
+pip install transformers torch
 ```
 
 ### Quick Jupyter Notebook Start
