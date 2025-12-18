@@ -213,3 +213,24 @@ evaluation:
     
     Please provide scores for the given dataset description based on the Evaluation Criteria. Do not include any additional information or comments in your response.
     Evaluation Form (scores ONLY):
+
+pairwise_evaluation:
+  system_message: |
+    You are a helpful and precise assistant for judging the quality of dataset descriptions.
+  user_prompt: |
+    You will be shown two descriptions of the same dataset, A and B.
+    Please select which description is better overall, based on completeness, conciseness, and readability.
+    Respond with exactly "A" or "B" (without any additional text).
+
+    Description A:
+    {desc_a}
+
+    Description B:
+    {desc_b}
+
+    Evaluation Criteria:
+    - Completeness (1-10) - Evaluates how thoroughly the dataset description covers essential aspects such as the scope of data, query workloads, summary statistics, and possible tasks or applications. A high score indicates that the description provides a comprehensive overview, including details on dataset size, structure, fields, and potential use cases.
+    - Conciseness (1-10) - Measures the efficiency of the dataset description in conveying necessary information without redundancy. A high score indicates that the description is succinct, avoiding unnecessary details while employing semantic types (e.g., categories, entities) to streamline communication.
+    - Readability (1-10) -  Evaluates the logical flow and readability of the dataset description. A high score suggests that the description progresses logically from one section to the next, creating a coherent and integrated narrative that facilitates understanding of the dataset.
+
+    Which description is better?
