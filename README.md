@@ -149,7 +149,7 @@ Use multi-threading to process columns in parallel for faster execution. **Only 
 semantic_profile = autoddg.analyze_semantics(
     dataframe,
     use_multi_threading=True,
-    max_workers=8,  # Optional: number of parallel workers
+    max_workers=32,  # Optional: number of parallel workers
 )
 ```
 
@@ -182,7 +182,7 @@ For local LLMs, use batch processing for efficient GPU utilization. **Only avail
 semantic_profile = autoddg.analyze_semantics(
     dataframe,
     use_batch_processing=True,
-    batch_size=4,  # Number of columns to process per batch
+    batch_size=32,  # Number of columns to process per batch
 )
 ```
 
