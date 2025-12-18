@@ -110,16 +110,12 @@ class SimpleSearchEngine:
 
         for doc_id, doc in documents.items():
             if self.similarity == "COSINE":
-                field = next(
-                    (f for f, value in index_fields.items() if value == 1), None
-                )
+                field = next((f for f, value in index_fields.items() if value == 1), None)
                 embedding = doc.get(field or "", "")
                 self.documents.append(embedding)
             else:
                 text_parts = [
-                    doc.get(field, "")
-                    for field, enabled in index_fields.items()
-                    if enabled
+                    doc.get(field, "") for field, enabled in index_fields.items() if enabled
                 ]
                 preprocessed_text = " ".join(self.preprocess(" ".join(text_parts)))
                 self.documents.append(preprocessed_text)
@@ -128,9 +124,7 @@ class SimpleSearchEngine:
             self.qrels.append(float(doc.get("qrel", 0)))
 
         if self.similarity == "BM25":
-            self.bm25_model = BM25Okapi(
-                [self.preprocess(doc) for doc in self.documents]
-            )
+            self.bm25_model = BM25Okapi([self.preprocess(doc) for doc in self.documents])
         elif self.similarity == "TFIDF":
             self.vectorizer = TfidfVectorizer()
             self.tfidf_model = self.vectorizer.fit_transform(self.documents)

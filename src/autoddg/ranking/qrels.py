@@ -19,9 +19,7 @@ def extract_query_rel(
         (nested: topic -> document -> [scores], flat: [(document, topic, score)])
     """
 
-    query_rel: dict[str, dict[str, list[float]]] = defaultdict(
-        lambda: defaultdict(list)
-    )
+    query_rel: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     query_rel_list: list[tuple[str, str, float]] = []
     with open(qrel_file_path, encoding="utf-8") as file:
         lines = file.readlines()[1:]

@@ -58,9 +58,7 @@ class DatasetDescriptionGenerator:
 
         if use_profile and dataset_profile:
             prompt_parts.append(
-                self._prompt_segments["profile_instruction"].format(
-                    dataset_profile=dataset_profile
-                )
+                self._prompt_segments["profile_instruction"].format(dataset_profile=dataset_profile)
             )
 
         if use_semantic_profile and semantic_profile:

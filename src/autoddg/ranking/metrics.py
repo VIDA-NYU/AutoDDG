@@ -100,9 +100,7 @@ def downstream_task_rank(
         Mapping k -> metrics
     """
 
-    def _compute_ndcg(
-        relevance_true: list[float], relevance_test: list[float], k: int
-    ) -> float:
+    def _compute_ndcg(relevance_true: list[float], relevance_test: list[float], k: int) -> float:
         ideal_dcg = np.sum(np.array(relevance_true) / np.log2(np.arange(2, k + 2)))
         dcg = np.sum(np.array(relevance_test) / np.log2(np.arange(2, k + 2)))
         return float(dcg / ideal_dcg)

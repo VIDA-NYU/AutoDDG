@@ -15,9 +15,7 @@ class SearchFocusedDescription:
     Expand a human-readable description into a search-optimised outline
     """
 
-    def __init__(
-        self, client: LLMClient | Any, model_name: str = "gpt-4o-mini"
-    ) -> None:
+    def __init__(self, client: LLMClient | Any, model_name: str = "gpt-4o-mini") -> None:
         # Support both LLMClient and legacy OpenAI clients
         if isinstance(client, LLMClient):
             self.llm_client = client
@@ -32,9 +30,7 @@ class SearchFocusedDescription:
         self._system_message = prompts["system_message"].strip()
         self._user_prompt = prompts["user_prompt"]
 
-    def expand_description(
-        self, initial_description: str, topic: str
-    ) -> tuple[str, str]:
+    def expand_description(self, initial_description: str, topic: str) -> tuple[str, str]:
         """Expand an initial dataset description for retrieval tasks
 
         Args:

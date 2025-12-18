@@ -17,9 +17,7 @@ from ..utils import load_prompts
 class SemanticProfiler:
     """Infer semantic information for each column using an LLM"""
 
-    def __init__(
-        self, client: LLMClient | Any, model_name: str = "gpt-4o-mini"
-    ) -> None:
+    def __init__(self, client: LLMClient | Any, model_name: str = "gpt-4o-mini") -> None:
         # Support both LLMClient and legacy OpenAI clients
         if isinstance(client, LLMClient):
             self.llm_client = client
@@ -107,9 +105,7 @@ class SemanticProfiler:
         # Build group prompt with all columns
         columns_info = []
         for column_name, sample_values in column_data:
-            columns_info.append(
-                f"Column: {column_name}\nSample values: {sample_values}"
-            )
+            columns_info.append(f"Column: {column_name}\nSample values: {sample_values}")
 
         columns_text = "\n\n".join(columns_info)
 
@@ -197,9 +193,7 @@ class SemanticProfiler:
 
         return (column_name, semantic_description)
 
-    def _create_column_summary(
-        self, column: str, semantic_description: dict[str, Any]
-    ) -> str:
+    def _create_column_summary(self, column: str, semantic_description: dict[str, Any]) -> str:
         """
         Create a formatted summary string for a column's semantic description.
 
@@ -338,9 +332,7 @@ class SemanticProfiler:
                 )
 
                 # Parse batch results
-                for column_name, response in zip(
-                    batch_columns, batch_responses, strict=True
-                ):
+                for column_name, response in zip(batch_columns, batch_responses, strict=True):
                     response_text = response["choices"][0]["message"]["content"]
                     response_text = self._fix_json_response(response_text)
                     try:
@@ -376,9 +368,7 @@ class SemanticProfiler:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit all tasks
                 future_to_column = {
-                    executor.submit(
-                        self._process_single_column, column, sample_values
-                    ): column
+                    executor.submit(self._process_single_column, column, sample_values): column
                     for column, sample_values in column_data
                 }
 
@@ -409,8 +399,7 @@ class SemanticProfiler:
                 column_summary = self._create_column_summary(column, results[column])
                 semantic_summary.append(column_summary)
 
-        final_summary = (
-            "The key semantic information for this dataset includes:\n"
-            + "\n".join(semantic_summary)
+        final_summary = "The key semantic information for this dataset includes:\n" + "\n".join(
+            semantic_summary
         )
         return final_summary

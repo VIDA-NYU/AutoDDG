@@ -15,8 +15,7 @@ try:
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
     warnings.warn(
-        "transformers and torch not available. "
-        "Install with: pip install transformers torch",
+        "transformers and torch not available. " "Install with: pip install transformers torch",
         stacklevel=2,
     )
 
@@ -55,9 +54,7 @@ class LocalLLMClient(LLMClient):
         # Determine dtype
         if torch_dtype is None:
             if self.device == "cuda":
-                self.dtype = (
-                    torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-                )
+                self.dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
             else:
                 self.dtype = torch.float32
         else:
@@ -97,10 +94,7 @@ class LocalLLMClient(LLMClient):
             Tuple of (formatted prompt string, prompt token count)
         """
         # Try to use tokenizer's chat template if available
-        if (
-            hasattr(self.tokenizer, "apply_chat_template")
-            and self.tokenizer.chat_template
-        ):
+        if hasattr(self.tokenizer, "apply_chat_template") and self.tokenizer.chat_template:
             # Format messages for chat template
             formatted_messages = []
             for msg in messages:
@@ -183,9 +177,7 @@ class LocalLLMClient(LLMClient):
         # Decode only the new tokens (response)
         input_length = inputs["input_ids"].shape[1]
         generated_tokens = outputs[0][input_length:]
-        response_text = self.tokenizer.decode(
-            generated_tokens, skip_special_tokens=True
-        ).strip()
+        response_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
 
         # Calculate token usage
         total_tokens = outputs.shape[1]
@@ -245,9 +237,9 @@ class LocalLLMClient(LLMClient):
 
         try:
             # Tokenize all prompts
-            inputs = self.tokenizer(
-                prompts, return_tensors="pt", padding=True, truncation=True
-            ).to(self.device)
+            inputs = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(
+                self.device
+            )
 
             # Generate in batch
             with torch.no_grad():

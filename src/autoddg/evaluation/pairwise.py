@@ -84,9 +84,7 @@ class PairwiseEvaluator(BaseEvaluator):
             Dictionary with results as list of (i, j, winner) tuples
             where winner is "A" (description i) or "B" (description j)
         """
-        pairs = self.sample_pairs(
-            len(descriptions), strategy=strategy, max_pairs=max_pairs
-        )
+        pairs = self.sample_pairs(len(descriptions), strategy=strategy, max_pairs=max_pairs)
         results: list[tuple[int, int, str]] = []
 
         for i, j in pairs:
@@ -156,9 +154,7 @@ class PairwiseEvaluator(BaseEvaluator):
                     wins[j] += 1
                 plays[i] += 1
                 plays[j] += 1
-            win_rates[aspect] = [
-                wins[k] / plays[k] if plays[k] else 0.0 for k in range(n_desc)
-            ]
+            win_rates[aspect] = [wins[k] / plays[k] if plays[k] else 0.0 for k in range(n_desc)]
         return win_rates
 
     @staticmethod

@@ -128,8 +128,7 @@ class AutoDDG:
             llm_client = OpenAICompatibleClient(client)
         else:
             raise ValueError(
-                "Must provide either client (for API) or set use_local_llm=True "
-                "(for local LLM)"
+                "Must provide either client (for API) or set use_local_llm=True " "(for local LLM)"
             )
 
         self.client = client  # Keep for backward compatibility
@@ -278,13 +277,9 @@ class AutoDDG:
             Short topic string
         """
 
-        return self.topic_generator.generate_topic(
-            title, original_description, dataset_sample
-        )
+        return self.topic_generator.generate_topic(title, original_description, dataset_sample)
 
-    def expand_description_for_search(
-        self, description: str, topic: str
-    ) -> tuple[str, str]:
+    def expand_description_for_search(self, description: str, topic: str) -> tuple[str, str]:
         """
         Expand a readable description into a search-oriented variant
 
