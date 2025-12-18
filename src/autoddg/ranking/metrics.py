@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, Iterable, List
+from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
@@ -32,7 +32,7 @@ def compute_dcg(relevances: Iterable[float], p: int) -> float:
 
 @beartype
 def compute_avg_single_Q(
-    stats: Dict[str, Dict[str, Dict[str, List[float]]]],
+    stats: dict[str, dict[str, dict[str, list[float]]]],
     description_version_key: str,
     Q_key: str,
 ) -> pd.DataFrame:
@@ -48,7 +48,7 @@ def compute_avg_single_Q(
         DataFrame of averaged metrics
     """
 
-    averages: Dict[str, Dict[str, float]] = {}
+    averages: dict[str, dict[str, float]] = {}
     ndcg_dicts = stats[description_version_key][Q_key]
     for index_version, ndcg_metric in ndcg_dicts.items():
         averages[index_version] = {
@@ -80,12 +80,12 @@ def compute_ndcg(
 
 @beartype
 def downstream_task_rank(
-    documents: List[str],
+    documents: list[str],
     query: str,
-    relevances: List[float],
+    relevances: list[float],
     ks: Iterable[int],
     debug: bool = False,
-) -> Dict[int, Dict[str, float]]:
+) -> dict[int, dict[str, float]]:
     """
     BM25 ranking with nDCG@k over the inputted documents
 
@@ -100,7 +100,7 @@ def downstream_task_rank(
         Mapping k -> metrics
     """
 
-    def _compute_ndcg(relevance_true: List[float], relevance_test: List[float], k: int) -> float:
+    def _compute_ndcg(relevance_true: list[float], relevance_test: list[float], k: int) -> float:
         ideal_dcg = np.sum(np.array(relevance_true) / np.log2(np.arange(2, k + 2)))
         dcg = np.sum(np.array(relevance_test) / np.log2(np.arange(2, k + 2)))
         return float(dcg / ideal_dcg)
@@ -116,7 +116,7 @@ def downstream_task_rank(
     sorted_rel_true = sorted(relevances, reverse=True)
     sorted_rel_test = np.array(relevances)[sorted_indices].tolist()
 
-    results: Dict[int, Dict[str, float]] = {}
+    results: dict[int, dict[str, float]] = {}
     for k in ks:
         ndcg = _compute_ndcg(sorted_rel_true[:k], sorted_rel_test[:k], k)
         results[k] = {"ndcg": ndcg}

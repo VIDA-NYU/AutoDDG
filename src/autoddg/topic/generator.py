@@ -4,6 +4,7 @@ from typing import Any
 
 from beartype import beartype
 
+from ..llm import LLMClient
 from ..utils import load_prompts
 
 
@@ -13,8 +14,15 @@ class DatasetTopicGenerator:
     Generate a short topic few words describing topic of a dataset
     """
 
-    def __init__(self, client: Any, model_name: str, temperature: float = 0.0) -> None:
-        self.client = client
+    def __init__(self, client: LLMClient | Any, model_name: str, temperature: float = 0.0) -> None:
+        # Support both LLMClient and legacy OpenAI clients
+        if isinstance(client, LLMClient):
+            self.llm_client = client
+        else:
+            # Legacy support: wrap OpenAI-compatible client
+            from ..llm import OpenAICompatibleClient
+
+            self.llm_client = OpenAICompatibleClient(client)
         self.model = model_name
         self.temperature = float(temperature)
         prompts = load_prompts()["topic_generation"]
@@ -49,7 +57,7 @@ class DatasetTopicGenerator:
         """
 
         prompt = self._build_prompt(title, original_description, dataset_sample)
-        response = self.client.chat.completions.create(
+        response = self.llm_client.chat_completions_create(
             model=self.model,
             messages=[
                 {"role": "system", "content": self._system_message},
@@ -57,4 +65,4 @@ class DatasetTopicGenerator:
             ],
             temperature=self.temperature,
         )
-        return response.choices[0].message.content.strip()
+        return response["choices"][0]["message"]["content"].strip()

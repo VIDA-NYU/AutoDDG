@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from importlib import resources
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 from beartype import beartype
 
-_PROMPT_CACHE: Dict[str, Any] | None = None
+_PROMPT_CACHE: dict[str, Any] | None = None
 
 
 @beartype
-def load_prompts() -> Dict[str, Any]:
+def load_prompts() -> dict[str, Any]:
     """
     Load and cache prompts.yaml from the package resources
 

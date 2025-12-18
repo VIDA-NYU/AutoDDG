@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Tuple
 
 import datamart_profiler
 from beartype import beartype
@@ -9,7 +8,7 @@ from pandas import DataFrame
 
 
 @beartype
-def profile_dataset(data_frame: DataFrame) -> Tuple[str, str]:
+def profile_dataset(data_frame: DataFrame) -> tuple[str, str]:
     """
     Run datamart profiling and produce short textual summaries
 
@@ -23,7 +22,7 @@ def profile_dataset(data_frame: DataFrame) -> Tuple[str, str]:
     """
 
     metadata = datamart_profiler.process_dataset(data_frame)
-    profile_summary: List[str] = []
+    profile_summary: list[str] = []
 
     for column_meta in metadata.get("columns", []):
         column_summary = f"**{column_meta['name']}**: "
@@ -51,7 +50,7 @@ def profile_dataset(data_frame: DataFrame) -> Tuple[str, str]:
         "The key data profile information for this dataset includes:\n" + "\n".join(profile_summary)
     )
 
-    semantic_summary: List[str] = []
+    semantic_summary: list[str] = []
     if "temporal_coverage" in metadata:
         for temp_cov in metadata["temporal_coverage"]:
             column_names = ", ".join(temp_cov.get("column_names", []))
@@ -80,7 +79,8 @@ def profile_dataset(data_frame: DataFrame) -> Tuple[str, str]:
             column_names = ", ".join(spatial_cov.get("column_names", []))
             spatial_resolution = spatial_cov.get("type", "unknown")
             semantic_summary.append(
-                f"**Spatial coverage** for columns {column_names}, with type {spatial_resolution}."
+                f"**Spatial coverage** for columns {column_names}, "
+                f"with type {spatial_resolution}."
             )
 
     final_semantic_summary = "\n".join(semantic_summary)

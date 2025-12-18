@@ -4,7 +4,7 @@ repos:
     hooks:
       - id: ruff
         name: ruff (lint)
-        args: ["--fix"]
+        args: ["--line-length=100", "--fix"]
 
   - repo: https://github.com/psf/black
     rev: 25.1.0

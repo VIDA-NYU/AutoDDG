@@ -126,6 +126,60 @@ semantic_profiler:
     Sample values: {sample_values}
   system_message: |
     You are a helpful assistant skilled in dataset semantic analysis.
+  group_response_example: |
+    {
+      "column1": {
+        "Domain-Specific Types": "General",
+        "Entity Type": "Temporal Entity",
+        "Function/Usage Context": "Aggregation Key",
+        "Spatial": {"isSpatial": false, "resolution": ""},
+        "Temporal": {"isTemporal": true, "resolution": "Year"}
+      },
+      "column2": {
+        "Domain-Specific Types": "Financial",
+        "Entity Type": "Numeric Entity",
+        "Function/Usage Context": "Measurement",
+        "Spatial": {"isSpatial": false, "resolution": ""},
+        "Temporal": {"isTemporal": false, "resolution": ""}
+      }
+    }
+  group_user_prompt: |
+    You are a dataset semantic analyzer. Analyze multiple columns at once and classify each column into multiple semantic types.
+
+    For each column provided below, classify it into semantic types under the following categories:
+    'Temporal', 'Spatial', 'Entity Type', 'Data Format', 'Domain-Specific Types', 'Function/Usage Context'.
+
+    Template for each column:
+    {template}
+
+    Please follow these rules:
+    1. The output must be a valid JSON object where each key is a column name and each value is the semantic type classification for that column.
+    2. All keys from the template must be present in each column's classification.
+    3. All keys and string values must be enclosed in double quotes.
+    4. There must be no trailing commas.
+    5. Use booleans (true/false) and numbers without quotes.
+    6. Do not include any additional information or context in the response.
+    7. If you are unsure about a specific category for a column, you can leave it as an empty string.
+
+    Example response format:
+    {response_example}
+
+    Columns to analyze:
+    {columns_text}
+
+    Return a JSON object with column names as keys and their semantic classifications as values:
+
+topic_generation:
+  system_message: |
+    You are an assistant for generating concise dataset topics.
+  user_prompt: |
+    Using the dataset information provided, generate a concise topic in 2-3 words that best describes the dataset's primary theme.
+
+    Title: {title}
+    {description_block}
+    Dataset Sample: {dataset_sample}
+
+    Topic (2-3 words):
 
 evaluation:
   system_message: |
@@ -143,7 +197,7 @@ evaluation:
     A high score suggests that the description progresses logically from one section to the next, creating a coherent and integrated narrative that facilitates understanding of the dataset.
 
     Evaluation Steps:
-    Read the dataset description carefully and identify the main topic and key points. Assign a score for each criterion on a scale of 1 to 10, where 1 is the lowest and 10 is the highest based on the Evaluation Criteria.
+    Read the dataset description carefully and identify the main topic and key points. Assign a score for each criteria on a scale of 1 to 10, where 1 is the lowest and 10 is the highest based on the Evaluation Criteria.
 
     Example 1:
     Description: The dataset provides information on alcohol-impaired driving deaths and occupant deaths across various states in the United States. It includes data for 51 states, detailing the number of alcohol-impaired driving deaths and occupant deaths, with values ranging from 0 to 3723 and 0 to 10406, respectively. Each entry also contains the state abbreviation and its geographical coordinates. The dataset is structured with categorical and numerical data types, focusing on traffic safety and casualty statistics. Key attributes include state names, death counts, and location coordinates, making it a valuable resource for analyzing traffic safety trends and issues related to impaired driving.
@@ -160,14 +214,23 @@ evaluation:
     Please provide scores for the given dataset description based on the Evaluation Criteria. Do not include any additional information or comments in your response.
     Evaluation Form (scores ONLY):
 
-topic_generation:
+pairwise_evaluation:
   system_message: |
-    You are an assistant for generating concise dataset topics.
+    You are a helpful and precise assistant for judging the quality of dataset descriptions.
   user_prompt: |
-    Using the dataset information provided, generate a concise topic in 2-3 words that best describes the dataset's primary theme.
+    You will be shown two descriptions of the same dataset, A and B.
+    Please select which description is better overall, based on completeness, conciseness, and readability.
+    Respond with exactly "A" or "B" (without any additional text).
 
-    Title: {title}
-    {description_block}
-    Dataset Sample: {dataset_sample}
+    Description A:
+    {desc_a}
 
-    Topic (2-3 words):
+    Description B:
+    {desc_b}
+
+    Evaluation Criteria:
+    - Completeness (1-10) - Evaluates how thoroughly the dataset description covers essential aspects such as the scope of data, query workloads, summary statistics, and possible tasks or applications. A high score indicates that the description provides a comprehensive overview, including details on dataset size, structure, fields, and potential use cases.
+    - Conciseness (1-10) - Measures the efficiency of the dataset description in conveying necessary information without redundancy. A high score indicates that the description is succinct, avoiding unnecessary details while employing semantic types (e.g., categories, entities) to streamline communication.
+    - Readability (1-10) -  Evaluates the logical flow and readability of the dataset description. A high score suggests that the description progresses logically from one section to the next, creating a coherent and integrated narrative that facilitates understanding of the dataset.
+
+    Which description is better?

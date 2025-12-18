@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Dict, List, Tuple
 
 from beartype import beartype
 
@@ -9,7 +8,7 @@ from beartype import beartype
 @beartype
 def extract_query_rel(
     qrel_file_path: str,
-) -> Tuple[Dict[str, Dict[str, List[float]]], List[Tuple[str, str, float]]]:
+) -> tuple[dict[str, dict[str, list[float]]], list[tuple[str, str, float]]]:
     """
     Parse a qrel CSV into nested and flat relevance structures
 
@@ -20,8 +19,8 @@ def extract_query_rel(
         (nested: topic -> document -> [scores], flat: [(document, topic, score)])
     """
 
-    query_rel: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
-    query_rel_list: List[Tuple[str, str, float]] = []
+    query_rel: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    query_rel_list: list[tuple[str, str, float]] = []
     with open(qrel_file_path, encoding="utf-8") as file:
         lines = file.readlines()[1:]
         for line in lines:

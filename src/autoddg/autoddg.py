@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any
 
 from beartype import beartype
 from pandas import DataFrame
 
 from .description import DatasetDescriptionGenerator, SearchFocusedDescription
 from .evaluation import BaseEvaluator
+from .llm import LocalLLMClient, OpenAICompatibleClient
 from .profiling import SemanticProfiler, profile_dataset
 from .topic import DatasetTopicGenerator
 
@@ -24,8 +25,16 @@ class AutoDDG:
     * optional description evaluation
 
     Args:
-        client (Any): OpenAI-compatible client (e.g. ``openai.OpenAI(...)``).
-        model_name (str): Default model identifier (e.g. ``"gpt-4o"``).
+        client (Any): OpenAI-compatible client (e.g. ``openai.OpenAI(...)``) or None
+            for local LLM.
+        model_name (str): Model identifier (e.g. ``"gpt-4o"`` for API or
+            ``"Qwen/Qwen2.5-7B-Instruct"`` for local).
+        use_local_llm (bool): If True, use local LLM via transformers.
+            Requires transformers and torch.
+        local_llm_device (str | None): Device for local LLM ("cuda", "cpu", or None
+            for auto).
+        local_llm_dtype (str | None): Data type for local LLM ("float16", "bfloat16",
+            "float32", or None for auto).
         description_temperature (float): Temperature for description generation.
         description_words (int): Target word count for generated descriptions.
         search_model_name (str | None): Override model for search-expansion.
@@ -34,13 +43,32 @@ class AutoDDG:
         evaluator (BaseEvaluator | None): Optional evaluator for quality scoring.
 
     Examples:
-        Basic usage:
+        Basic usage with API:
 
             >>> import openai
             >>> from autoddg import AutoDDG
             >>> client = openai.OpenAI(api_key="sk-...")
-            >>> pipe = AutoDDG(client=client, model_name="gpt-4o", description_words=100)
-            >>> sample_csv = "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
+            >>> pipe = AutoDDG(
+            ...     client=client, model_name="gpt-4o", description_words=100
+            ... )
+            >>> sample_csv = (
+            ...     "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
+            ... )
+            >>> prompt, desc = pipe.describe_dataset(dataset_sample=sample_csv)
+            >>> print(desc)
+
+        Basic usage with local LLM:
+
+            >>> from autoddg import AutoDDG
+            >>> pipe = AutoDDG(
+            ...     client=None,
+            ...     model_name="Qwen/Qwen2.5-7B-Instruct",
+            ...     use_local_llm=True,
+            ...     description_words=100
+            ... )
+            >>> sample_csv = (
+            ...     "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
+            ... )
             >>> prompt, desc = pipe.describe_dataset(dataset_sample=sample_csv)
             >>> print(desc)
 
@@ -71,9 +99,12 @@ class AutoDDG:
 
     def __init__(
         self,
-        client: Any,
-        model_name: str,
+        client: Any | None = None,
+        model_name: str = "gpt-4o",
         *,
+        use_local_llm: bool = False,
+        local_llm_device: str | None = None,
+        local_llm_dtype: str | None = None,
         description_temperature: float = 0.0,
         description_words: int = 100,
         search_model_name: str | None = None,
@@ -81,25 +112,44 @@ class AutoDDG:
         topic_temperature: float = 0.0,
         evaluator: BaseEvaluator | None = None,
     ) -> None:
-        self.client = client
+        # Initialize LLM client
+        if use_local_llm:
+            if client is not None:
+                raise ValueError(
+                    "Cannot specify both client and use_local_llm=True. "
+                    "For local LLM, set client=None and use_local_llm=True."
+                )
+            llm_client = LocalLLMClient(
+                model_name=model_name,
+                device=local_llm_device,
+                torch_dtype=local_llm_dtype,
+            )
+        elif client is not None:
+            llm_client = OpenAICompatibleClient(client)
+        else:
+            raise ValueError(
+                "Must provide either client (for API) or set use_local_llm=True " "(for local LLM)"
+            )
+
+        self.client = client  # Keep for backward compatibility
         self.model_name = model_name
         self.description_generator = DatasetDescriptionGenerator(
-            client=client,
+            client=llm_client,
             model_name=model_name,
             temperature=description_temperature,
             description_words=description_words,
         )
         self.semantic_profiler = SemanticProfiler(
-            client=client,
+            client=llm_client,
             model_name=semantic_model_name or model_name,
         )
         self.topic_generator = DatasetTopicGenerator(
-            client=client,
+            client=llm_client,
             model_name=model_name,
             temperature=topic_temperature,
         )
         self.search_description = SearchFocusedDescription(
-            client=client,
+            client=llm_client,
             model_name=search_model_name or model_name,
         )
         self.evaluator = evaluator
@@ -113,7 +163,7 @@ class AutoDDG:
         use_semantic_profile: bool = False,
         data_topic: str | None = None,
         use_topic: bool = False,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Produce a short description from a CSV sample with optional context
 
@@ -140,7 +190,7 @@ class AutoDDG:
             use_topic=use_topic,
         )
 
-    def profile_dataframe(self, dataframe: DataFrame) -> Tuple[str, str]:
+    def profile_dataframe(self, dataframe: DataFrame) -> tuple[str, str]:
         """
         Summarise structure and coverage using the datamart profiler
 
@@ -155,18 +205,62 @@ class AutoDDG:
 
         return profile_dataset(dataframe)
 
-    def analyze_semantics(self, dataframe: DataFrame) -> str:
+    def analyze_semantics(
+        self,
+        dataframe: DataFrame,
+        *,
+        use_group_prompting: bool = False,
+        use_multi_threading: bool = False,
+        use_batch_processing: bool = False,
+        max_workers: int | None = None,
+        group_size: int = 0,
+        batch_size: int = 4,
+    ) -> str:
         """
         Infer column semantics with an LLM and return a short overview
 
+        Processing modes available:
+        1. Sequential mode (default): Processes columns one by one sequentially.
+        2. Multi-threaded mode (use_multi_threading=True): Uses multi-threading to
+           process columns in parallel for faster execution. Only available for
+           OpenAI API clients.
+        3. Group mode (use_group_prompting=True): Processes columns in groups via
+           group prompting, reducing API calls.
+           - If group_size=0: Processes all columns in a single prompt (most
+             efficient).
+           - If group_size>0: Processes columns in groups of group_size.
+        4. Batch mode (use_batch_processing=True): Processes columns in batches
+           using batch inference. Only available for local LLMs. Takes precedence
+           over other modes.
+
         Args:
             dataframe: Input frame
+            use_group_prompting: If True, use group prompting (single API call for all
+                columns or groups). Takes precedence over use_multi_threading.
+            use_multi_threading: If True, use multi-threading for individual column
+                processing (only used if use_group_prompting=False and
+                use_batch_processing=False). Only works with OpenAI API clients.
+            use_batch_processing: If True, use batch processing for local LLMs.
+                Only works with LocalLLMClient. Takes precedence over other modes.
+            max_workers: Maximum number of concurrent workers for multi-threaded mode.
+                Default: min(32, num_columns).
+            group_size: Group size for group prompting. If 0, process all columns
+                at once. If >0, process in groups of that size.
+            batch_size: Batch size for batch processing mode. Only used with local LLMs.
 
         Returns:
             Summary of column semantics
         """
 
-        return self.semantic_profiler.analyze_dataframe(dataframe)
+        return self.semantic_profiler.analyze_dataframe(
+            dataframe,
+            use_group_prompting=use_group_prompting,
+            use_multi_threading=use_multi_threading,
+            use_batch_processing=use_batch_processing,
+            max_workers=max_workers,
+            group_size=group_size,
+            batch_size=batch_size,
+        )
 
     def generate_topic(
         self, title: str, original_description: str | None, dataset_sample: str
@@ -185,7 +279,7 @@ class AutoDDG:
 
         return self.topic_generator.generate_topic(title, original_description, dataset_sample)
 
-    def expand_description_for_search(self, description: str, topic: str) -> Tuple[str, str]:
+    def expand_description_for_search(self, description: str, topic: str) -> tuple[str, str]:
         """
         Expand a readable description into a search-oriented variant
 

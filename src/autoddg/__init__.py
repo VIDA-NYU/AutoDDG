@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from .autoddg import AutoDDG
 from .description import DatasetDescriptionGenerator, SearchFocusedDescription
-from .evaluation import GPTEvaluator, LLaMAEvaluator
+from .evaluation import (
+    GPT4oMiniPairwiseEvaluator,
+    GPT4oPairwiseEvaluator,
+    GPTEvaluator,
+    LLaMAEvaluator,
+    LLaMAPairwiseEvaluator,
+    PairwiseEvaluator,
+)
+from .llm import LLMClient, LocalLLMClient, OpenAICompatibleClient
 from .profiling import SemanticProfiler, profile_dataset
 from .topic import DatasetTopicGenerator
 
@@ -14,6 +22,13 @@ __all__ = [
     "DatasetTopicGenerator",
     "GPTEvaluator",
     "LLaMAEvaluator",
+    "PairwiseEvaluator",
+    "GPT4oPairwiseEvaluator",
+    "GPT4oMiniPairwiseEvaluator",
+    "LLaMAPairwiseEvaluator",
+    "LLMClient",
+    "LocalLLMClient",
+    "OpenAICompatibleClient",
     "SearchFocusedDescription",
     "SemanticProfiler",
     "profile_dataset",

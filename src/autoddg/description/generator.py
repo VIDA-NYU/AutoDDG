@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 from beartype import beartype
 
+from ..llm import LLMClient
 from ..utils import load_prompts
 
 
@@ -13,17 +15,24 @@ class DatasetDescriptionGenerator:
 
     def __init__(
         self,
-        client: Any,
+        client: LLMClient | Any,
         model_name: str,
         temperature: float = 0.0,
         description_words: int = 100,
     ) -> None:
-        self.client = client
+        # Support both LLMClient and legacy OpenAI clients
+        if isinstance(client, LLMClient):
+            self.llm_client = client
+        else:
+            # Legacy support: wrap OpenAI-compatible client
+            from ..llm import OpenAICompatibleClient
+
+            self.llm_client = OpenAICompatibleClient(client)
         self.model = model_name
         self.temperature = float(temperature)
         self.description_words = int(description_words)
         prompts = load_prompts()["dataset_description"]
-        self._prompt_segments: Dict[str, str] = {
+        self._prompt_segments: dict[str, str] = {
             "introduction": prompts["introduction"],
             "profile_instruction": prompts["profile_instruction"],
             "semantic_instruction": prompts["semantic_instruction"],
@@ -81,7 +90,7 @@ class DatasetDescriptionGenerator:
         use_semantic_profile: bool = False,
         data_topic: str | None = None,
         use_topic: bool = False,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Call the model and return prompt and description
 
@@ -108,7 +117,7 @@ class DatasetDescriptionGenerator:
             use_topic=use_topic,
         )
 
-        response = self.client.chat.completions.create(
+        response = self.llm_client.chat_completions_create(
             model=self.model,
             messages=[
                 {"role": "system", "content": self._system_message},
@@ -117,5 +126,5 @@ class DatasetDescriptionGenerator:
             temperature=self.temperature,
         )
 
-        description = response.choices[0].message.content
+        description = response["choices"][0]["message"]["content"]
         return prompt, description

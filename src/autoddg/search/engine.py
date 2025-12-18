@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import nltk
 import numpy as np
@@ -19,9 +19,9 @@ class SimpleSearchEngine:
     """
 
     def __init__(self, similarity: str = "BM25") -> None:
-        self.documents: List[str] = []
-        self.doc_ids: List[str] = []
-        self.qrels: List[float] = []
+        self.documents: list[str] = []
+        self.doc_ids: list[str] = []
+        self.qrels: list[float] = []
         self.similarity = similarity
         self.bm25_model: BM25Okapi | None = None
         self.tfidf_model = None
@@ -74,7 +74,7 @@ class SimpleSearchEngine:
             return 0.0
         return dot_product / (norm1 * norm2)
 
-    def preprocess(self, text: str) -> List[str]:
+    def preprocess(self, text: str) -> list[str]:
         """
         Lowercase and tokenise text
 
@@ -90,8 +90,8 @@ class SimpleSearchEngine:
 
     def index_documents(
         self,
-        documents: Dict[str, Dict[str, str]],
-        index_fields: Dict[str, int] | None = None,
+        documents: dict[str, dict[str, str]],
+        index_fields: dict[str, int] | None = None,
     ) -> None:
         """
         Index documents with selected fields for retrieval
@@ -131,7 +131,7 @@ class SimpleSearchEngine:
 
     def search(
         self, query_str: str, size: int = 10
-    ) -> Tuple[List[float], List[float], List[Tuple[str, float, float]]]:
+    ) -> tuple[list[float], list[float], list[tuple[str, float, float]]]:
         """
         Search and return retrieved and ideal relevances and ranked docs
 
