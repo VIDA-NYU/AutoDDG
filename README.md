@@ -13,6 +13,13 @@
 </div>
 
 ---
+## Overview
+
+This repository contains the reproduction artifact for the **SIGMOD 2026** paper:
+
+> **AutoDDG: Automated Dataset Description Generation using Large Language Models**
+
+AutoDDG is an automated system for generating comprehensive, accurate, readable, and concise dataset descriptions. The framework combines a data-driven approach to summarize dataset contents with large language models (LLMs) to enrich summaries with semantic information and produce human-readable descriptions. AutoDDG supports both API-based (OpenAI) and local LLM (transformers) modes, providing flexibility for different deployment scenarios.
 
 ## Installation
 
