@@ -125,7 +125,7 @@ print(description)
 pip install transformers torch
 ```
 
-### Semantic Analysis Processing Modes
+### Semantic Profiler Processing Modes
 
 AutoDDG provides multiple processing modes for semantic analysis to optimize performance based on your use case:
 
@@ -147,14 +147,14 @@ semantic_profile = autoddg.analyze_semantics(dataframe)
 
 #### Multi-threading Mode (OpenAI API Only)
 
-Use multi-threading to process columns in parallel for faster execution. **Only available for OpenAI API clients:**
+Use multi-threading to process columns concurrently for faster execution. **Only available for OpenAI API clients:**
 
 ```python
 # Multi-threading mode (OpenAI API only)
 semantic_profile = autoddg.analyze_semantics(
     dataframe,
     use_multi_threading=True,
-    max_workers=32,  # Optional: number of parallel workers
+    max_workers=32,  # Optional: number of concurrent workers
 )
 ```
 
