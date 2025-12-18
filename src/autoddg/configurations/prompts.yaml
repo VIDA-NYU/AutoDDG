@@ -126,6 +126,48 @@ semantic_profiler:
     Sample values: {sample_values}
   system_message: |
     You are a helpful assistant skilled in dataset semantic analysis.
+  group_response_example: |
+    {
+      "column1": {
+        "Domain-Specific Types": "General",
+        "Entity Type": "Temporal Entity",
+        "Function/Usage Context": "Aggregation Key",
+        "Spatial": {"isSpatial": false, "resolution": ""},
+        "Temporal": {"isTemporal": true, "resolution": "Year"}
+      },
+      "column2": {
+        "Domain-Specific Types": "Financial",
+        "Entity Type": "Numeric Entity",
+        "Function/Usage Context": "Measurement",
+        "Spatial": {"isSpatial": false, "resolution": ""},
+        "Temporal": {"isTemporal": false, "resolution": ""}
+      }
+    }
+  group_user_prompt: |
+    You are a dataset semantic analyzer. Analyze multiple columns at once and classify each column into multiple semantic types.
+
+    For each column provided below, classify it into semantic types under the following categories:
+    'Temporal', 'Spatial', 'Entity Type', 'Data Format', 'Domain-Specific Types', 'Function/Usage Context'.
+
+    Template for each column:
+    {template}
+
+    Please follow these rules:
+    1. The output must be a valid JSON object where each key is a column name and each value is the semantic type classification for that column.
+    2. All keys from the template must be present in each column's classification.
+    3. All keys and string values must be enclosed in double quotes.
+    4. There must be no trailing commas.
+    5. Use booleans (true/false) and numbers without quotes.
+    6. Do not include any additional information or context in the response.
+    7. If you are unsure about a specific category for a column, you can leave it as an empty string.
+
+    Example response format:
+    {response_example}
+
+    Columns to analyze:
+    {columns_text}
+
+    Return a JSON object with column names as keys and their semantic classifications as values:
 
 evaluation:
   system_message: |

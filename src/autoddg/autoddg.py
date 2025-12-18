@@ -155,18 +155,49 @@ class AutoDDG:
 
         return profile_dataset(dataframe)
 
-    def analyze_semantics(self, dataframe: DataFrame) -> str:
+    def analyze_semantics(
+        self,
+        dataframe: DataFrame,
+        *,
+        use_group_prompting: bool = False,
+        use_multi_threading: bool = False,
+        max_workers: int | None = None,
+        group_size: int = 0,
+    ) -> str:
         """
         Infer column semantics with an LLM and return a short overview
 
+        Three processing modes available:
+        1. Sequential mode (default): Processes columns one by one sequentially.
+        2. Multi-threaded mode (use_multi_threading=True): Uses multi-threading to process
+           columns in parallel for faster execution.
+        3. Group mode (use_group_prompting=True): Processes columns in groups via group
+           prompting, reducing API calls.
+           - If group_size=0: Processes all columns in a single prompt (most efficient).
+           - If group_size>0: Processes columns in groups of group_size.
+
         Args:
             dataframe: Input frame
+            use_group_prompting: If True, use group prompting (single API call for all
+                columns or groups). Takes precedence over use_multi_threading.
+            use_multi_threading: If True, use multi-threading for individual column
+                processing (only used if use_group_prompting=False).
+            max_workers: Maximum number of concurrent workers for multi-threaded mode.
+                Default: min(32, num_columns).
+            group_size: Group size for group prompting. If 0, process all columns at once.
+                If >0, process in groups of that size.
 
         Returns:
             Summary of column semantics
         """
 
-        return self.semantic_profiler.analyze_dataframe(dataframe)
+        return self.semantic_profiler.analyze_dataframe(
+            dataframe,
+            use_group_prompting=use_group_prompting,
+            use_multi_threading=use_multi_threading,
+            max_workers=max_workers,
+            group_size=group_size,
+        )
 
     def generate_topic(
         self, title: str, original_description: str | None, dataset_sample: str
