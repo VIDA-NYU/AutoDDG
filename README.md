@@ -12,7 +12,6 @@
   </p>
 </div>
 
----
 ## Overview
 
 This repository contains the official implementation for the **SIGMOD 2026** paper:
