@@ -127,7 +127,7 @@ pip install transformers torch
 
 ### Semantic Profiler Processing Modes
 
-AutoDDG provides multiple processing modes for semantic analysis to optimize performance based on your use case:
+AutoDDG provides multiple processing modes for semantic profiling to optimize performance based on your use case:
 
 | Mode | OpenAI API | Local LLM | Description |
 |------|------------|-----------|-------------|
