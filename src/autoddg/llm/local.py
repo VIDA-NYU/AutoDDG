@@ -197,3 +197,93 @@ class LocalLLMClient(LLMClient):
             },
         }
 
+    def chat_completions_create_batch(
+        self,
+        model: str,
+        messages_list: List[List[Dict[str, str]]],
+        temperature: float = 0.0,
+        max_tokens: int = 2048,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate chat completions for multiple prompts in batch using local model
+
+        Args:
+            model: Model identifier (ignored, uses self.model_name)
+            messages_list: List of message lists, each containing message dicts with 'role' and 'content' keys
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional generation parameters
+
+        Returns:
+            List of response dicts compatible with OpenAI API format
+        """
+        # Format all prompts
+        prompts = []
+        prompt_token_counts = []
+        for messages in messages_list:
+            prompt, prompt_tokens = self._format_messages(messages)
+            prompts.append(prompt)
+            prompt_token_counts.append(prompt_tokens)
+
+        # Set up tokenizer for batch processing
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+        original_padding_side = self.tokenizer.padding_side
+        self.tokenizer.padding_side = "left"
+
+        try:
+            # Tokenize all prompts
+            inputs = self.tokenizer(
+                prompts, return_tensors="pt", padding=True, truncation=True
+            ).to(self.device)
+
+            # Generate in batch
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_tokens,
+                    temperature=temperature if temperature > 0 else None,
+                    do_sample=temperature > 0,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    **kwargs,
+                )
+
+            # Decode responses
+            responses = []
+            for i, (prompt, prompt_tokens) in enumerate(zip(prompts, prompt_token_counts)):
+                input_length = inputs["attention_mask"][i].sum().item()
+                generated_tokens = outputs[i][input_length:]
+                response_text = self.tokenizer.decode(
+                    generated_tokens, skip_special_tokens=True
+                ).strip()
+
+                # Calculate token usage
+                # Note: outputs[i] includes both input and generated tokens
+                # input_length is the actual input length (excluding padding)
+                completion_tokens = len(generated_tokens)
+                total_tokens = prompt_tokens + completion_tokens
+
+                responses.append(
+                    {
+                        "choices": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "content": response_text,
+                                }
+                            }
+                        ],
+                        "usage": {
+                            "prompt_tokens": prompt_tokens,
+                            "completion_tokens": completion_tokens,
+                            "total_tokens": total_tokens,
+                        },
+                    }
+                )
+
+            return responses
+        finally:
+            # Restore original padding side
+            self.tokenizer.padding_side = original_padding_side
+

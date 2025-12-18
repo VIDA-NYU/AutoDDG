@@ -114,6 +114,78 @@ print(description)
 pip install transformers torch
 ```
 
+### Semantic Analysis Processing Modes
+
+AutoDDG provides multiple processing modes for semantic analysis to optimize performance based on your use case:
+
+| Mode | OpenAI API | Local LLM | Description |
+|------|------------|-----------|-------------|
+| **Sequential** | ✅ | ✅ | Default mode, processes columns one by one |
+| **Multi-threading** | ✅ | ❌ | Parallel processing for faster execution |
+| **Group-prompting** | ✅ | ✅ | Processes multiple columns in one prompt |
+| **Batch processing** | ❌ | ✅ | Efficient GPU utilization for local models |
+
+#### Sequential Mode (Default)
+
+The default mode processes columns sequentially. Works with both API and local LLMs:
+
+```python
+# Sequential mode (default)
+semantic_profile = autoddg.analyze_semantics(dataframe)
+```
+
+#### Multi-threading Mode (OpenAI API Only)
+
+Use multi-threading to process columns in parallel for faster execution. **Only available for OpenAI API clients:**
+
+```python
+# Multi-threading mode (OpenAI API only)
+semantic_profile = autoddg.analyze_semantics(
+    dataframe,
+    use_multi_threading=True,
+    max_workers=8,  # Optional: number of parallel workers
+)
+```
+
+#### Group-prompting Mode (Both API and Local LLM)
+
+Process multiple columns in a single prompt to reduce API calls. Efficient for both API and local LLMs:
+
+```python
+# Group-prompting: process all columns at once
+semantic_profile = autoddg.analyze_semantics(
+    dataframe,
+    use_group_prompting=True,
+    group_size=0,  # 0 = all columns at once, >0 = group size
+)
+
+# Or process in groups of 5 columns
+semantic_profile = autoddg.analyze_semantics(
+    dataframe,
+    use_group_prompting=True,
+    group_size=5,
+)
+```
+
+#### Batch Processing Mode (Local LLM Only)
+
+For local LLMs, use batch processing for efficient GPU utilization. **Only available for local LLMs:**
+
+```python
+# Batch processing mode (Local LLM only)
+semantic_profile = autoddg.analyze_semantics(
+    dataframe,
+    use_batch_processing=True,
+    batch_size=4,  # Number of columns to process per batch
+)
+```
+
+**Important Notes:**
+- Multi-threading is only available for OpenAI API clients
+- Batch processing is only available for local LLMs
+- Group-prompting works with both API and local LLMs
+- Batch processing takes precedence over other modes if enabled
+
 ### Quick Jupyter Notebook Start
 
 For a much better introduction, we **highly recommend** starting with the [quick_start notebook with an example dataset](./examples/quick_start.ipynb).

@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 from beartype import beartype
 from pandas import DataFrame
 
-from ..llm import LLMClient
+from ..llm import LLMClient, LocalLLMClient
 from ..utils import load_prompts
 
 
@@ -231,31 +231,39 @@ class SemanticProfiler:
         *,
         use_group_prompting: bool = False,
         use_multi_threading: bool = False,
+        use_batch_processing: bool = False,
         max_workers: int | None = None,
         group_size: int = 0,
+        batch_size: int = 4,
     ) -> str:
         """
         Summarise detected semantics per column in plain English.
 
-        Three processing modes available:
+        Processing modes available:
         1. Sequential mode (default): Processes columns one by one sequentially.
         2. Multi-threaded mode (use_multi_threading=True): Uses multi-threading to process
-           columns in parallel for faster execution.
+           columns in parallel for faster execution. Only available for OpenAI API clients.
         3. Group mode (use_group_prompting=True): Processes columns in groups via group
            prompting, reducing API calls.
            - If group_size=0: Processes all columns in a single prompt (most efficient).
-           - If group_size>0: Processes columns in groups of group_size.
+           - If group_size>0: Processes columns in groups of that size.
+        4. Batch mode (use_batch_processing=True): Processes columns in batches using
+           batch inference. Only available for local LLMs. Takes precedence over other modes.
 
         Args:
             dataframe: Input frame
             use_group_prompting: If True, use group prompting (single API call for all
                 columns or groups). Takes precedence over use_multi_threading.
             use_multi_threading: If True, use multi-threading for individual column
-                processing (only used if use_group_prompting=False).
+                processing (only used if use_group_prompting=False and use_batch_processing=False).
+                Only works with OpenAI API clients.
+            use_batch_processing: If True, use batch processing for local LLMs.
+                Only works with LocalLLMClient. Takes precedence over other modes.
             max_workers: Maximum number of concurrent workers for multi-threaded mode.
                 Default: min(32, num_columns).
             group_size: Group size for group prompting. If 0, process all columns at once.
                 If >0, process in groups of that size.
+            batch_size: Batch size for batch processing mode. Only used with local LLMs.
 
         Returns:
             Text summary of semantics
@@ -278,7 +286,56 @@ class SemanticProfiler:
         num_columns = len(column_data)
         results: Dict[str, Dict[str, Any]] = {}
 
-        if use_group_prompting:
+        # Check if using local LLM
+        is_local_llm = isinstance(self.llm_client, LocalLLMClient)
+
+        # Batch processing mode (only for local LLMs)
+        if use_batch_processing:
+            if not is_local_llm:
+                raise ValueError(
+                    "Batch processing is only available for local LLMs. "
+                    "Use use_local_llm=True when initializing AutoDDG."
+                )
+            if not hasattr(self.llm_client, "chat_completions_create_batch"):
+                raise ValueError(
+                    "Local LLM client does not support batch processing. "
+                    "Please update to a version that supports batch processing."
+                )
+
+            # Process columns in batches
+            for i in range(0, len(column_data), batch_size):
+                batch = column_data[i : i + batch_size]
+                batch_messages = []
+                batch_columns = []
+
+                for column_name, sample_values in batch:
+                    prompt = self._build_prompt(column_name, sample_values)
+                    batch_messages.append(
+                        [
+                            {"role": "system", "content": self._system_message},
+                            {"role": "user", "content": prompt},
+                        ]
+                    )
+                    batch_columns.append(column_name)
+
+                # Process batch
+                batch_responses = self.llm_client.chat_completions_create_batch(
+                    model=self.model,
+                    messages_list=batch_messages,
+                )
+
+                # Parse batch results
+                for column_name, response in zip(batch_columns, batch_responses):
+                    response_text = response["choices"][0]["message"]["content"]
+                    response_text = self._fix_json_response(response_text)
+                    try:
+                        semantic_description = json.loads(response_text)
+                        if semantic_description is not None:
+                            results[column_name] = semantic_description
+                    except json.JSONDecodeError:
+                        pass
+
+        elif use_group_prompting:
             # Group mode: process columns in groups or all at once
             if group_size == 0:
                 # Process all columns in a single API call
@@ -292,7 +349,12 @@ class SemanticProfiler:
                     results.update(group_results)
 
         elif use_multi_threading:
-            # Multi-threaded mode: process columns in parallel
+            # Multi-threaded mode: process columns in parallel (only for OpenAI API)
+            if is_local_llm:
+                raise ValueError(
+                    "Multi-threading is only available for OpenAI API clients. "
+                    "For local LLMs, use use_batch_processing=True instead."
+                )
             if max_workers is None:
                 max_workers = min(32, num_columns)
 
