@@ -1,6 +1,6 @@
+# 🏷️ AutoDDG: Automated Dataset Description Generation using Large Language Models
+
 <div align="center">
-  <h1>AutoDDG</h1>
-  <h3><i>Automated Dataset Description Generation using Large Language Models</i></h3>
   <p>
     <a href="https://arxiv.org/abs/2502.01050"><img src="https://img.shields.io/badge/arXiv-2502.01050-b31b1b?style=flat-square&logo=arxiv&logoColor=white" alt="arXiv"></a>
     <img src="https://img.shields.io/static/v1?label=UV&message=compliant&color=2196F3&style=flat-square" alt="UV">
@@ -15,7 +15,7 @@
 ---
 ## Overview
 
-This repository contains the reproduction artifact for the **SIGMOD 2026** paper:
+This repository contains the official implementation for the **SIGMOD 2026** paper:
 
 > **AutoDDG: Automated Dataset Description Generation using Large Language Models**
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 
@@ -23,10 +23,10 @@ class OpenAICompatibleClient(LLMClient):
     def chat_completions_create(
         self,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         temperature: float = 0.0,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate a chat completion using OpenAI-compatible API
 
@@ -66,4 +66,3 @@ class OpenAICompatibleClient(LLMClient):
                 else None
             ),
         }
-

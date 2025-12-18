@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Tuple
-
 from beartype import beartype
 from pandas import DataFrame
 
@@ -9,7 +7,7 @@ from pandas import DataFrame
 @beartype
 def get_sample(
     data_pd: DataFrame, sample_size: int, random_state: int = 9
-) -> Tuple[DataFrame, str]:
+) -> tuple[DataFrame, str]:
     """
     Return a random sample or whole frame and its CSV text
 

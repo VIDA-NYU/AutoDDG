@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any
 
 from beartype import beartype
 from pandas import DataFrame
@@ -16,7 +17,9 @@ from ..utils import load_prompts
 class SemanticProfiler:
     """Infer semantic information for each column using an LLM"""
 
-    def __init__(self, client: LLMClient | Any, model_name: str = "gpt-4o-mini") -> None:
+    def __init__(
+        self, client: LLMClient | Any, model_name: str = "gpt-4o-mini"
+    ) -> None:
         # Support both LLMClient and legacy OpenAI clients
         if isinstance(client, LLMClient):
             self.llm_client = client
@@ -55,7 +58,7 @@ class SemanticProfiler:
 
     def get_semantic_type(
         self, column_name: str, sample_values: Iterable[str]
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         """
         Return parsed semantic metadata for a column or None on parse failure
 
@@ -84,8 +87,8 @@ class SemanticProfiler:
             return None
 
     def _get_semantic_types_group(
-        self, column_data: List[Tuple[str, List[str]]]
-    ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
+        self, column_data: list[tuple[str, list[str]]]
+    ) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
         """
         Get semantic types for multiple columns in a single group prompt.
 
@@ -104,7 +107,9 @@ class SemanticProfiler:
         # Build group prompt with all columns
         columns_info = []
         for column_name, sample_values in column_data:
-            columns_info.append(f"Column: {column_name}\nSample values: {sample_values}")
+            columns_info.append(
+                f"Column: {column_name}\nSample values: {sample_values}"
+            )
 
         columns_text = "\n\n".join(columns_info)
 
@@ -167,8 +172,8 @@ class SemanticProfiler:
             return {}, {"error": str(e), "num_columns": len(column_data)}
 
     def _process_single_column(
-        self, column_name: str, sample_values: List[str]
-    ) -> Tuple[str, Dict[str, Any] | None]:
+        self, column_name: str, sample_values: list[str]
+    ) -> tuple[str, dict[str, Any] | None]:
         """
         Process a single column to get semantic type with retry logic.
 
@@ -179,7 +184,7 @@ class SemanticProfiler:
         Returns:
             Tuple of (column_name, semantic_description) or (column_name, None) if failed.
         """
-        semantic_description: Dict[str, Any] | None = None
+        semantic_description: dict[str, Any] | None = None
         retry_count = 0
         while semantic_description is None and retry_count < 3:
             semantic_description = self.get_semantic_type(column_name, sample_values)
@@ -188,7 +193,7 @@ class SemanticProfiler:
         return (column_name, semantic_description)
 
     def _create_column_summary(
-        self, column: str, semantic_description: Dict[str, Any]
+        self, column: str, semantic_description: dict[str, Any]
     ) -> str:
         """
         Create a formatted summary string for a column's semantic description.
@@ -274,17 +279,17 @@ class SemanticProfiler:
                 return data_pd.sample(sample_size, random_state=9)
             return data_pd
 
-        semantic_summary: List[str] = []
+        semantic_summary: list[str] = []
         dataframe_sample = _get_sample(dataframe, 5)
 
         # Prepare column data
-        column_data: List[Tuple[str, List[str]]] = []
+        column_data: list[tuple[str, list[str]]] = []
         for column in dataframe.columns:
             sample_values = dataframe_sample[column].astype(str).tolist()
             column_data.append((column, sample_values))
 
         num_columns = len(column_data)
-        results: Dict[str, Dict[str, Any]] = {}
+        results: dict[str, dict[str, Any]] = {}
 
         # Check if using local LLM
         is_local_llm = isinstance(self.llm_client, LocalLLMClient)
@@ -380,7 +385,7 @@ class SemanticProfiler:
         else:
             # Sequential mode: process columns one by one
             for column, sample_values in column_data:
-                semantic_description: Dict[str, Any] | None = None
+                semantic_description: dict[str, Any] | None = None
                 retry_count = 0
                 while semantic_description is None and retry_count < 3:
                     semantic_description = self.get_semantic_type(column, sample_values)
@@ -394,7 +399,8 @@ class SemanticProfiler:
                 column_summary = self._create_column_summary(column, results[column])
                 semantic_summary.append(column_summary)
 
-        final_summary = "The key semantic information for this dataset includes:\n" + "\n".join(
-            semantic_summary
+        final_summary = (
+            "The key semantic information for this dataset includes:\n"
+            + "\n".join(semantic_summary)
         )
         return final_summary

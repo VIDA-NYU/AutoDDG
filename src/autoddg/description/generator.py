@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 from beartype import beartype
 
@@ -31,7 +32,7 @@ class DatasetDescriptionGenerator:
         self.temperature = float(temperature)
         self.description_words = int(description_words)
         prompts = load_prompts()["dataset_description"]
-        self._prompt_segments: Dict[str, str] = {
+        self._prompt_segments: dict[str, str] = {
             "introduction": prompts["introduction"],
             "profile_instruction": prompts["profile_instruction"],
             "semantic_instruction": prompts["semantic_instruction"],
@@ -57,7 +58,9 @@ class DatasetDescriptionGenerator:
 
         if use_profile and dataset_profile:
             prompt_parts.append(
-                self._prompt_segments["profile_instruction"].format(dataset_profile=dataset_profile)
+                self._prompt_segments["profile_instruction"].format(
+                    dataset_profile=dataset_profile
+                )
             )
 
         if use_semantic_profile and semantic_profile:
@@ -89,7 +92,7 @@ class DatasetDescriptionGenerator:
         use_semantic_profile: bool = False,
         data_topic: str | None = None,
         use_topic: bool = False,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Call the model and return prompt and description
 

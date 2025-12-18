@@ -14,7 +14,9 @@ class DatasetTopicGenerator:
     Generate a short topic few words describing topic of a dataset
     """
 
-    def __init__(self, client: LLMClient | Any, model_name: str, temperature: float = 0.0) -> None:
+    def __init__(
+        self, client: LLMClient | Any, model_name: str, temperature: float = 0.0
+    ) -> None:
         # Support both LLMClient and legacy OpenAI clients
         if isinstance(client, LLMClient):
             self.llm_client = client
@@ -33,7 +35,9 @@ class DatasetTopicGenerator:
         self, title: str, original_description: str | None, dataset_sample: str
     ) -> str:
         description_block = (
-            f"Original Description: {original_description}\n" if original_description else ""
+            f"Original Description: {original_description}\n"
+            if original_description
+            else ""
         )
         return self._user_prompt.format(
             title=title,

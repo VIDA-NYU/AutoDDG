@@ -5,4 +5,3 @@ from .local import LocalLLMClient
 from .openai_compat import OpenAICompatibleClient
 
 __all__ = ["LLMClient", "LocalLLMClient", "OpenAICompatibleClient"]
-

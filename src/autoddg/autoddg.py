@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any
 
 from beartype import beartype
 from pandas import DataFrame
 
 from .description import DatasetDescriptionGenerator, SearchFocusedDescription
 from .evaluation import BaseEvaluator
-from .llm import LLMClient, LocalLLMClient, OpenAICompatibleClient
+from .llm import LocalLLMClient, OpenAICompatibleClient
 from .profiling import SemanticProfiler, profile_dataset
 from .topic import DatasetTopicGenerator
 
@@ -152,7 +152,7 @@ class AutoDDG:
         use_semantic_profile: bool = False,
         data_topic: str | None = None,
         use_topic: bool = False,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Produce a short description from a CSV sample with optional context
 
@@ -179,7 +179,7 @@ class AutoDDG:
             use_topic=use_topic,
         )
 
-    def profile_dataframe(self, dataframe: DataFrame) -> Tuple[str, str]:
+    def profile_dataframe(self, dataframe: DataFrame) -> tuple[str, str]:
         """
         Summarise structure and coverage using the datamart profiler
 
@@ -263,9 +263,13 @@ class AutoDDG:
             Short topic string
         """
 
-        return self.topic_generator.generate_topic(title, original_description, dataset_sample)
+        return self.topic_generator.generate_topic(
+            title, original_description, dataset_sample
+        )
 
-    def expand_description_for_search(self, description: str, topic: str) -> Tuple[str, str]:
+    def expand_description_for_search(
+        self, description: str, topic: str
+    ) -> tuple[str, str]:
         """
         Expand a readable description into a search-oriented variant
 

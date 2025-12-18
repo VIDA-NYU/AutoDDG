@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import nltk
 import numpy as np
@@ -19,9 +19,9 @@ class SimpleSearchEngine:
     """
 
     def __init__(self, similarity: str = "BM25") -> None:
-        self.documents: List[str] = []
-        self.doc_ids: List[str] = []
-        self.qrels: List[float] = []
+        self.documents: list[str] = []
+        self.doc_ids: list[str] = []
+        self.qrels: list[float] = []
         self.similarity = similarity
         self.bm25_model: BM25Okapi | None = None
         self.tfidf_model = None
@@ -74,7 +74,7 @@ class SimpleSearchEngine:
             return 0.0
         return dot_product / (norm1 * norm2)
 
-    def preprocess(self, text: str) -> List[str]:
+    def preprocess(self, text: str) -> list[str]:
         """
         Lowercase and tokenise text
 
@@ -90,8 +90,8 @@ class SimpleSearchEngine:
 
     def index_documents(
         self,
-        documents: Dict[str, Dict[str, str]],
-        index_fields: Dict[str, int] | None = None,
+        documents: dict[str, dict[str, str]],
+        index_fields: dict[str, int] | None = None,
     ) -> None:
         """
         Index documents with selected fields for retrieval
@@ -110,12 +110,16 @@ class SimpleSearchEngine:
 
         for doc_id, doc in documents.items():
             if self.similarity == "COSINE":
-                field = next((f for f, value in index_fields.items() if value == 1), None)
+                field = next(
+                    (f for f, value in index_fields.items() if value == 1), None
+                )
                 embedding = doc.get(field or "", "")
                 self.documents.append(embedding)
             else:
                 text_parts = [
-                    doc.get(field, "") for field, enabled in index_fields.items() if enabled
+                    doc.get(field, "")
+                    for field, enabled in index_fields.items()
+                    if enabled
                 ]
                 preprocessed_text = " ".join(self.preprocess(" ".join(text_parts)))
                 self.documents.append(preprocessed_text)
@@ -124,14 +128,16 @@ class SimpleSearchEngine:
             self.qrels.append(float(doc.get("qrel", 0)))
 
         if self.similarity == "BM25":
-            self.bm25_model = BM25Okapi([self.preprocess(doc) for doc in self.documents])
+            self.bm25_model = BM25Okapi(
+                [self.preprocess(doc) for doc in self.documents]
+            )
         elif self.similarity == "TFIDF":
             self.vectorizer = TfidfVectorizer()
             self.tfidf_model = self.vectorizer.fit_transform(self.documents)
 
     def search(
         self, query_str: str, size: int = 10
-    ) -> Tuple[List[float], List[float], List[Tuple[str, float, float]]]:
+    ) -> tuple[list[float], list[float], list[tuple[str, float, float]]]:
         """
         Search and return retrieved and ideal relevances and ranked docs
 

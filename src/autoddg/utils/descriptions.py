@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from beartype import beartype
 
@@ -19,7 +20,7 @@ def get_various_descriptions(
     semantic_profile: str | None,
     data_topic: str | None,
     verbose: bool = False,
-) -> Dict[str, Dict[str, str]]:
+) -> dict[str, dict[str, str]]:
     """
     Generate descriptions across temperature length and context settings for a dataset
 
@@ -40,7 +41,7 @@ def get_various_descriptions(
     """
     from autoddg.description import DatasetDescriptionGenerator
 
-    sub_data_descriptions: Dict[str, Dict[str, str]] = {}
+    sub_data_descriptions: dict[str, dict[str, str]] = {}
 
     for temperature in temperatures:
         for num_words in description_words:

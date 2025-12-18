@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from beartype import beartype
 
 from .base import LLMClient
 
 try:
-    from transformers import AutoModelForCausalLM, AutoTokenizer
     import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
 
     TRANSFORMERS_AVAILABLE = True
 except ImportError:
@@ -53,7 +53,9 @@ class LocalLLMClient(LLMClient):
         # Determine dtype
         if torch_dtype is None:
             if self.device == "cuda":
-                self.dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+                self.dtype = (
+                    torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+                )
             else:
                 self.dtype = torch.float32
         else:
@@ -81,7 +83,7 @@ class LocalLLMClient(LLMClient):
 
         self.model.eval()
 
-    def _format_messages(self, messages: List[Dict[str, str]]) -> Tuple[str, int]:
+    def _format_messages(self, messages: list[dict[str, str]]) -> tuple[str, int]:
         """
         Format messages into a prompt string using the tokenizer's chat template if available
 
@@ -92,7 +94,10 @@ class LocalLLMClient(LLMClient):
             Tuple of (formatted prompt string, prompt token count)
         """
         # Try to use tokenizer's chat template if available
-        if hasattr(self.tokenizer, "apply_chat_template") and self.tokenizer.chat_template:
+        if (
+            hasattr(self.tokenizer, "apply_chat_template")
+            and self.tokenizer.chat_template
+        ):
             # Format messages for chat template
             formatted_messages = []
             for msg in messages:
@@ -133,11 +138,11 @@ class LocalLLMClient(LLMClient):
     def chat_completions_create(
         self,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         temperature: float = 0.0,
         max_tokens: int = 2048,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate a chat completion using local model
 
@@ -175,7 +180,9 @@ class LocalLLMClient(LLMClient):
         # Decode only the new tokens (response)
         input_length = inputs["input_ids"].shape[1]
         generated_tokens = outputs[0][input_length:]
-        response_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+        response_text = self.tokenizer.decode(
+            generated_tokens, skip_special_tokens=True
+        ).strip()
 
         # Calculate token usage
         total_tokens = outputs.shape[1]
@@ -200,11 +207,11 @@ class LocalLLMClient(LLMClient):
     def chat_completions_create_batch(
         self,
         model: str,
-        messages_list: List[List[Dict[str, str]]],
+        messages_list: list[list[dict[str, str]]],
         temperature: float = 0.0,
         max_tokens: int = 2048,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Generate chat completions for multiple prompts in batch using local model
 
@@ -251,7 +258,9 @@ class LocalLLMClient(LLMClient):
 
             # Decode responses
             responses = []
-            for i, (prompt, prompt_tokens) in enumerate(zip(prompts, prompt_token_counts)):
+            for i, (prompt, prompt_tokens) in enumerate(
+                zip(prompts, prompt_token_counts)
+            ):
                 input_length = inputs["attention_mask"][i].sum().item()
                 generated_tokens = outputs[i][input_length:]
                 response_text = self.tokenizer.decode(
@@ -286,4 +295,3 @@ class LocalLLMClient(LLMClient):
         finally:
             # Restore original padding side
             self.tokenizer.padding_side = original_padding_side
-

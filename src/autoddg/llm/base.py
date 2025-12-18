@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 
@@ -14,10 +14,10 @@ class LLMClient(ABC):
     def chat_completions_create(
         self,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         temperature: float = 0.0,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate a chat completion
 
@@ -31,4 +31,3 @@ class LLMClient(ABC):
             Response dict with 'choices' key containing list of message dicts
         """
         pass
-

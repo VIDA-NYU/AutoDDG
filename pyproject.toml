@@ -11,11 +11,12 @@ license = { file = "LICENSE" }
 authors = [
   { name = "Haoxiang Zhang" },
   { name = "Yurong Liu" },
-  { name = "Wei-Lun (Allen) Hung" },
   { name = "Aécio Santos" },
+  { name = "Wei-Lun (Allen) Hung" },
   { name = "Juliana Freire" }
 ]
 maintainers = [
+  { name = "Yurong Liu" },
   { name = "Haoxiang Zhang" },
   { name = "Roque López" },
   { name = "Simon Provost" }
