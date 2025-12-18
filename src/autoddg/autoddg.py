@@ -7,6 +7,7 @@ from pandas import DataFrame
 
 from .description import DatasetDescriptionGenerator, SearchFocusedDescription
 from .evaluation import BaseEvaluator
+from .llm import LLMClient, LocalLLMClient, OpenAICompatibleClient
 from .profiling import SemanticProfiler, profile_dataset
 from .topic import DatasetTopicGenerator
 
@@ -24,8 +25,11 @@ class AutoDDG:
     * optional description evaluation
 
     Args:
-        client (Any): OpenAI-compatible client (e.g. ``openai.OpenAI(...)``).
-        model_name (str): Default model identifier (e.g. ``"gpt-4o"``).
+        client (Any): OpenAI-compatible client (e.g. ``openai.OpenAI(...)``) or None for local LLM.
+        model_name (str): Model identifier (e.g. ``"gpt-4o"`` for API or ``"Qwen/Qwen2.5-7B-Instruct"`` for local).
+        use_local_llm (bool): If True, use local LLM via transformers. Requires transformers and torch.
+        local_llm_device (str | None): Device for local LLM ("cuda", "cpu", or None for auto).
+        local_llm_dtype (str | None): Data type for local LLM ("float16", "bfloat16", "float32", or None for auto).
         description_temperature (float): Temperature for description generation.
         description_words (int): Target word count for generated descriptions.
         search_model_name (str | None): Override model for search-expansion.
@@ -34,12 +38,25 @@ class AutoDDG:
         evaluator (BaseEvaluator | None): Optional evaluator for quality scoring.
 
     Examples:
-        Basic usage:
+        Basic usage with API:
 
             >>> import openai
             >>> from autoddg import AutoDDG
             >>> client = openai.OpenAI(api_key="sk-...")
             >>> pipe = AutoDDG(client=client, model_name="gpt-4o", description_words=100)
+            >>> sample_csv = "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
+            >>> prompt, desc = pipe.describe_dataset(dataset_sample=sample_csv)
+            >>> print(desc)
+
+        Basic usage with local LLM:
+
+            >>> from autoddg import AutoDDG
+            >>> pipe = AutoDDG(
+            ...     client=None,
+            ...     model_name="Qwen/Qwen2.5-7B-Instruct",
+            ...     use_local_llm=True,
+            ...     description_words=100
+            ... )
             >>> sample_csv = "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
             >>> prompt, desc = pipe.describe_dataset(dataset_sample=sample_csv)
             >>> print(desc)
@@ -71,9 +88,12 @@ class AutoDDG:
 
     def __init__(
         self,
-        client: Any,
-        model_name: str,
+        client: Any | None = None,
+        model_name: str = "gpt-4o",
         *,
+        use_local_llm: bool = False,
+        local_llm_device: str | None = None,
+        local_llm_dtype: str | None = None,
         description_temperature: float = 0.0,
         description_words: int = 100,
         search_model_name: str | None = None,
@@ -81,25 +101,44 @@ class AutoDDG:
         topic_temperature: float = 0.0,
         evaluator: BaseEvaluator | None = None,
     ) -> None:
-        self.client = client
+        # Initialize LLM client
+        if use_local_llm:
+            if client is not None:
+                raise ValueError(
+                    "Cannot specify both client and use_local_llm=True. "
+                    "For local LLM, set client=None and use_local_llm=True."
+                )
+            llm_client = LocalLLMClient(
+                model_name=model_name,
+                device=local_llm_device,
+                torch_dtype=local_llm_dtype,
+            )
+        elif client is not None:
+            llm_client = OpenAICompatibleClient(client)
+        else:
+            raise ValueError(
+                "Must provide either client (for API) or set use_local_llm=True (for local LLM)"
+            )
+
+        self.client = client  # Keep for backward compatibility
         self.model_name = model_name
         self.description_generator = DatasetDescriptionGenerator(
-            client=client,
+            client=llm_client,
             model_name=model_name,
             temperature=description_temperature,
             description_words=description_words,
         )
         self.semantic_profiler = SemanticProfiler(
-            client=client,
+            client=llm_client,
             model_name=semantic_model_name or model_name,
         )
         self.topic_generator = DatasetTopicGenerator(
-            client=client,
+            client=llm_client,
             model_name=model_name,
             temperature=topic_temperature,
         )
         self.search_description = SearchFocusedDescription(
-            client=client,
+            client=llm_client,
             model_name=search_model_name or model_name,
         )
         self.evaluator = evaluator

@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 from beartype import beartype
 from pandas import DataFrame
 
+from ..llm import LLMClient
 from ..utils import load_prompts
 
 
@@ -15,8 +16,15 @@ from ..utils import load_prompts
 class SemanticProfiler:
     """Infer semantic information for each column using an LLM"""
 
-    def __init__(self, client: Any, model_name: str = "gpt-4o-mini") -> None:
-        self.client = client
+    def __init__(self, client: LLMClient | Any, model_name: str = "gpt-4o-mini") -> None:
+        # Support both LLMClient and legacy OpenAI clients
+        if isinstance(client, LLMClient):
+            self.llm_client = client
+        else:
+            # Legacy support: wrap OpenAI-compatible client
+            from ..llm import OpenAICompatibleClient
+
+            self.llm_client = OpenAICompatibleClient(client)
         self.model = model_name
         prompts = load_prompts()["semantic_profiler"]
         self._template = prompts["template"]
@@ -60,14 +68,14 @@ class SemanticProfiler:
         """
 
         prompt = self._build_prompt(column_name, sample_values)
-        response = self.client.chat.completions.create(
+        response = self.llm_client.chat_completions_create(
             model=self.model,
             messages=[
                 {"role": "system", "content": self._system_message},
                 {"role": "user", "content": prompt},
             ],
         )
-        response_text = response.choices[0].message.content
+        response_text = response["choices"][0]["message"]["content"]
         response_text = self._fix_json_response(response_text)
 
         try:
@@ -107,7 +115,7 @@ class SemanticProfiler:
         )
 
         try:
-            response = self.client.chat.completions.create(
+            response = self.llm_client.chat_completions_create(
                 model=self.model,
                 messages=[
                     {
@@ -118,7 +126,7 @@ class SemanticProfiler:
                 ],
             )
 
-            response_text = response.choices[0].message.content
+            response_text = response["choices"][0]["message"]["content"]
 
             # Fix JSON if needed
             try:

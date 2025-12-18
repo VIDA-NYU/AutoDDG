@@ -42,6 +42,12 @@ dependencies = [
   "pyyaml==6.0.2",
 ]
 
+[project.optional-dependencies]
+local-llm = [
+  "transformers>=4.40.0",
+  "torch>=2.0.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/VIDA-NYU/AutoDDG"
 Repository = "https://github.com/VIDA-NYU/AutoDDG"

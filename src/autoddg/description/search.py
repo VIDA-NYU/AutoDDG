@@ -4,6 +4,7 @@ from typing import Any, Tuple
 
 from beartype import beartype
 
+from ..llm import LLMClient
 from ..utils import load_prompts
 
 
@@ -14,8 +15,15 @@ class SearchFocusedDescription:
     Expand a human-readable description into a search-optimised outline
     """
 
-    def __init__(self, client: Any, model_name: str = "gpt-4o-mini") -> None:
-        self.client = client
+    def __init__(self, client: LLMClient | Any, model_name: str = "gpt-4o-mini") -> None:
+        # Support both LLMClient and legacy OpenAI clients
+        if isinstance(client, LLMClient):
+            self.llm_client = client
+        else:
+            # Legacy support: wrap OpenAI-compatible client
+            from ..llm import OpenAICompatibleClient
+
+            self.llm_client = OpenAICompatibleClient(client)
         self.model = model_name
         prompts = load_prompts()["search_expansion"]
         self._template = prompts["template"].strip()
@@ -39,7 +47,7 @@ class SearchFocusedDescription:
             template=self._template,
         )
 
-        response = self.client.chat.completions.create(
+        response = self.llm_client.chat_completions_create(
             model=self.model,
             messages=[
                 {"role": "system", "content": self._system_message},
@@ -47,5 +55,5 @@ class SearchFocusedDescription:
             ],
         )
 
-        expanded_description = response.choices[0].message.content
+        expanded_description = response["choices"][0]["message"]["content"]
         return prompt, expanded_description

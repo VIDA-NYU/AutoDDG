@@ -3,6 +3,7 @@ from __future__ import annotations
 from .autoddg import AutoDDG
 from .description import DatasetDescriptionGenerator, SearchFocusedDescription
 from .evaluation import GPTEvaluator, LLaMAEvaluator
+from .llm import LLMClient, LocalLLMClient, OpenAICompatibleClient
 from .profiling import SemanticProfiler, profile_dataset
 from .topic import DatasetTopicGenerator
 
@@ -14,6 +15,9 @@ __all__ = [
     "DatasetTopicGenerator",
     "GPTEvaluator",
     "LLaMAEvaluator",
+    "LLMClient",
+    "LocalLLMClient",
+    "OpenAICompatibleClient",
     "SearchFocusedDescription",
     "SemanticProfiler",
     "profile_dataset",
