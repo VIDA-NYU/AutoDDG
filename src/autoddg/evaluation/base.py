@@ -34,7 +34,8 @@ class BaseEvaluator:
 
     def evaluate(self, description: str) -> str:
         """
-        Evaluate the given description text & Return the raw scoring response from the model
+        Evaluate the given description text & Return the raw scoring response
+        from the model
 
         Args:
             description: Description text

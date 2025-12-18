@@ -25,11 +25,16 @@ class AutoDDG:
     * optional description evaluation
 
     Args:
-        client (Any): OpenAI-compatible client (e.g. ``openai.OpenAI(...)``) or None for local LLM.
-        model_name (str): Model identifier (e.g. ``"gpt-4o"`` for API or ``"Qwen/Qwen2.5-7B-Instruct"`` for local).
-        use_local_llm (bool): If True, use local LLM via transformers. Requires transformers and torch.
-        local_llm_device (str | None): Device for local LLM ("cuda", "cpu", or None for auto).
-        local_llm_dtype (str | None): Data type for local LLM ("float16", "bfloat16", "float32", or None for auto).
+        client (Any): OpenAI-compatible client (e.g. ``openai.OpenAI(...)``) or None
+            for local LLM.
+        model_name (str): Model identifier (e.g. ``"gpt-4o"`` for API or
+            ``"Qwen/Qwen2.5-7B-Instruct"`` for local).
+        use_local_llm (bool): If True, use local LLM via transformers.
+            Requires transformers and torch.
+        local_llm_device (str | None): Device for local LLM ("cuda", "cpu", or None
+            for auto).
+        local_llm_dtype (str | None): Data type for local LLM ("float16", "bfloat16",
+            "float32", or None for auto).
         description_temperature (float): Temperature for description generation.
         description_words (int): Target word count for generated descriptions.
         search_model_name (str | None): Override model for search-expansion.
@@ -43,8 +48,12 @@ class AutoDDG:
             >>> import openai
             >>> from autoddg import AutoDDG
             >>> client = openai.OpenAI(api_key="sk-...")
-            >>> pipe = AutoDDG(client=client, model_name="gpt-4o", description_words=100)
-            >>> sample_csv = "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
+            >>> pipe = AutoDDG(
+            ...     client=client, model_name="gpt-4o", description_words=100
+            ... )
+            >>> sample_csv = (
+            ...     "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
+            ... )
             >>> prompt, desc = pipe.describe_dataset(dataset_sample=sample_csv)
             >>> print(desc)
 
@@ -57,7 +66,9 @@ class AutoDDG:
             ...     use_local_llm=True,
             ...     description_words=100
             ... )
-            >>> sample_csv = "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
+            >>> sample_csv = (
+            ...     "city,country,population\\nLondon,UK,8908081\\nLeeds,UK,789194"
+            ... )
             >>> prompt, desc = pipe.describe_dataset(dataset_sample=sample_csv)
             >>> print(desc)
 
@@ -117,7 +128,8 @@ class AutoDDG:
             llm_client = OpenAICompatibleClient(client)
         else:
             raise ValueError(
-                "Must provide either client (for API) or set use_local_llm=True (for local LLM)"
+                "Must provide either client (for API) or set use_local_llm=True "
+                "(for local LLM)"
             )
 
         self.client = client  # Keep for backward compatibility
@@ -210,28 +222,31 @@ class AutoDDG:
 
         Processing modes available:
         1. Sequential mode (default): Processes columns one by one sequentially.
-        2. Multi-threaded mode (use_multi_threading=True): Uses multi-threading to process
-           columns in parallel for faster execution. Only available for OpenAI API clients.
-        3. Group mode (use_group_prompting=True): Processes columns in groups via group
-           prompting, reducing API calls.
-           - If group_size=0: Processes all columns in a single prompt (most efficient).
+        2. Multi-threaded mode (use_multi_threading=True): Uses multi-threading to
+           process columns in parallel for faster execution. Only available for
+           OpenAI API clients.
+        3. Group mode (use_group_prompting=True): Processes columns in groups via
+           group prompting, reducing API calls.
+           - If group_size=0: Processes all columns in a single prompt (most
+             efficient).
            - If group_size>0: Processes columns in groups of group_size.
-        4. Batch mode (use_batch_processing=True): Processes columns in batches using
-           batch inference. Only available for local LLMs. Takes precedence over other modes.
+        4. Batch mode (use_batch_processing=True): Processes columns in batches
+           using batch inference. Only available for local LLMs. Takes precedence
+           over other modes.
 
         Args:
             dataframe: Input frame
             use_group_prompting: If True, use group prompting (single API call for all
                 columns or groups). Takes precedence over use_multi_threading.
             use_multi_threading: If True, use multi-threading for individual column
-                processing (only used if use_group_prompting=False and use_batch_processing=False).
-                Only works with OpenAI API clients.
+                processing (only used if use_group_prompting=False and
+                use_batch_processing=False). Only works with OpenAI API clients.
             use_batch_processing: If True, use batch processing for local LLMs.
                 Only works with LocalLLMClient. Takes precedence over other modes.
             max_workers: Maximum number of concurrent workers for multi-threaded mode.
                 Default: min(32, num_columns).
-            group_size: Group size for group prompting. If 0, process all columns at once.
-                If >0, process in groups of that size.
+            group_size: Group size for group prompting. If 0, process all columns
+                at once. If >0, process in groups of that size.
             batch_size: Batch size for batch processing mode. Only used with local LLMs.
 
         Returns:

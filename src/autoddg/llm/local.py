@@ -15,7 +15,9 @@ try:
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
     warnings.warn(
-        "transformers and torch not available. Install with: pip install transformers torch"
+        "transformers and torch not available. "
+        "Install with: pip install transformers torch",
+        stacklevel=2,
     )
 
 
@@ -85,7 +87,8 @@ class LocalLLMClient(LLMClient):
 
     def _format_messages(self, messages: list[dict[str, str]]) -> tuple[str, int]:
         """
-        Format messages into a prompt string using the tokenizer's chat template if available
+        Format messages into a prompt string using the tokenizer's chat template
+        if available
 
         Args:
             messages: List of message dicts with 'role' and 'content' keys
@@ -217,7 +220,8 @@ class LocalLLMClient(LLMClient):
 
         Args:
             model: Model identifier (ignored, uses self.model_name)
-            messages_list: List of message lists, each containing message dicts with 'role' and 'content' keys
+            messages_list: List of message lists, each containing message dicts
+                with 'role' and 'content' keys
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             **kwargs: Additional generation parameters
@@ -258,8 +262,8 @@ class LocalLLMClient(LLMClient):
 
             # Decode responses
             responses = []
-            for i, (prompt, prompt_tokens) in enumerate(
-                zip(prompts, prompt_token_counts)
+            for i, (_prompt, prompt_tokens) in enumerate(
+                zip(prompts, prompt_token_counts, strict=True)
             ):
                 input_length = inputs["attention_mask"][i].sum().item()
                 generated_tokens = outputs[i][input_length:]

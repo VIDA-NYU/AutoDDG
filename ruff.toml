@@ -3,3 +3,4 @@ select = ["E", "F", "I", "UP", "B", "C4"]
 
 [lint.per-file-ignores]
 "src/autoddg/utils/__init__.py" = ["E501"]
+"examples/quick_start.ipynb" = ["E501"]

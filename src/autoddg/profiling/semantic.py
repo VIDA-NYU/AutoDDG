@@ -125,7 +125,11 @@ class SemanticProfiler:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a helpful assistant skilled in dataset semantic analysis. You analyze multiple columns efficiently in a single response.",
+                        "content": (
+                            "You are a helpful assistant skilled in dataset semantic "
+                            "analysis. You analyze multiple columns efficiently in a "
+                            "single response."
+                        ),
                     },
                     {"role": "user", "content": prompt},
                 ],
@@ -182,7 +186,8 @@ class SemanticProfiler:
             sample_values: Sample values from the column.
 
         Returns:
-            Tuple of (column_name, semantic_description) or (column_name, None) if failed.
+            Tuple of (column_name, semantic_description) or (column_name, None)
+            if failed.
         """
         semantic_description: dict[str, Any] | None = None
         retry_count = 0
@@ -246,28 +251,31 @@ class SemanticProfiler:
 
         Processing modes available:
         1. Sequential mode (default): Processes columns one by one sequentially.
-        2. Multi-threaded mode (use_multi_threading=True): Uses multi-threading to process
-           columns in parallel for faster execution. Only available for OpenAI API clients.
-        3. Group mode (use_group_prompting=True): Processes columns in groups via group
-           prompting, reducing API calls.
-           - If group_size=0: Processes all columns in a single prompt (most efficient).
+        2. Multi-threaded mode (use_multi_threading=True): Uses multi-threading to
+           process columns in parallel for faster execution. Only available for
+           OpenAI API clients.
+        3. Group mode (use_group_prompting=True): Processes columns in groups via
+           group prompting, reducing API calls.
+           - If group_size=0: Processes all columns in a single prompt (most
+             efficient).
            - If group_size>0: Processes columns in groups of that size.
-        4. Batch mode (use_batch_processing=True): Processes columns in batches using
-           batch inference. Only available for local LLMs. Takes precedence over other modes.
+        4. Batch mode (use_batch_processing=True): Processes columns in batches
+           using batch inference. Only available for local LLMs. Takes precedence
+           over other modes.
 
         Args:
             dataframe: Input frame
             use_group_prompting: If True, use group prompting (single API call for all
                 columns or groups). Takes precedence over use_multi_threading.
             use_multi_threading: If True, use multi-threading for individual column
-                processing (only used if use_group_prompting=False and use_batch_processing=False).
-                Only works with OpenAI API clients.
+                processing (only used if use_group_prompting=False and
+                use_batch_processing=False). Only works with OpenAI API clients.
             use_batch_processing: If True, use batch processing for local LLMs.
                 Only works with LocalLLMClient. Takes precedence over other modes.
             max_workers: Maximum number of concurrent workers for multi-threaded mode.
                 Default: min(32, num_columns).
-            group_size: Group size for group prompting. If 0, process all columns at once.
-                If >0, process in groups of that size.
+            group_size: Group size for group prompting. If 0, process all columns
+                at once. If >0, process in groups of that size.
             batch_size: Batch size for batch processing mode. Only used with local LLMs.
 
         Returns:
@@ -330,7 +338,9 @@ class SemanticProfiler:
                 )
 
                 # Parse batch results
-                for column_name, response in zip(batch_columns, batch_responses):
+                for column_name, response in zip(
+                    batch_columns, batch_responses, strict=True
+                ):
                     response_text = response["choices"][0]["message"]["content"]
                     response_text = self._fix_json_response(response_text)
                     try:

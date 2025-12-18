@@ -84,7 +84,8 @@ def profile_dataset(data_frame: DataFrame) -> tuple[str, str]:
             column_names = ", ".join(spatial_cov.get("column_names", []))
             spatial_resolution = spatial_cov.get("type", "unknown")
             semantic_summary.append(
-                f"**Spatial coverage** for columns {column_names}, with type {spatial_resolution}."
+                f"**Spatial coverage** for columns {column_names}, "
+                f"with type {spatial_resolution}."
             )
 
     final_semantic_summary = "\n".join(semantic_summary)
