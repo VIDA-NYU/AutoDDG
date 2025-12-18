@@ -47,6 +47,12 @@ pip install git+https://github.com/VIDA-NYU/AutoDDG@main
 
 **For local LLM support** (Qwen, Llama, etc.), install with optional dependencies:
 
+Using uv (recommended):
+```bash
+uv sync --extra local-llm
+```
+
+Using pip:
 ```bash
 pip install git+https://github.com/VIDA-NYU/AutoDDG@main[local-llm]
 # or
