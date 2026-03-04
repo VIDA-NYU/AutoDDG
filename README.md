@@ -208,6 +208,17 @@ For a much better introduction, we **highly recommend** starting with the [quick
 If you use `AutoDDG` in your research, please cite our work:
 
 ```bibtex
+@article{autoddg-sigmod2026,
+Author = {Haoxiang Zhang and Yurong Liu and Wei-Lun Hung and Aécio Santos and Juliana Freire},
+Title = {AutoDDG: Automated Dataset Description Generation using Large Language Models},
+Journal = {Proceedings of the ACM on Management of Data},
+Year = {2026},
+Note = {To appear},
+}
+```
+
+A preprint of the paper is available on arxiv: https://arxiv.org/abs/2502.01050
+```bibtex
 @misc{2502.01050,
 Author = {Haoxiang Zhang and Yurong Liu and Wei-Lun Hung and Aécio Santos and Juliana Freire},
 Title = {AutoDDG: Automated Dataset Description Generation using Large Language Models},
