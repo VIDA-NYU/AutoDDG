@@ -212,8 +212,13 @@ If you use `AutoDDG` in your research, please cite our work:
 Author = {Haoxiang Zhang and Yurong Liu and Wei-Lun Hung and Aécio Santos and Juliana Freire},
 Title = {AutoDDG: Automated Dataset Description Generation using Large Language Models},
 Journal = {Proceedings of the ACM on Management of Data},
-Year = {2026},
-Note = {To appear},
+volume = {4},
+number = {1},
+articleno = {12},
+numpages = {27},
+url = {https://doi.org/10.1145/3786626},
+doi = {10.1145/3786626},
+Year = {2026}
 }
 ```
 
