@@ -287,7 +287,10 @@ class SemanticProfiler:
         # Prepare column data
         column_data: list[tuple[str, list[str]]] = []
         for column in dataframe.columns:
-            sample_values = dataframe_sample[column].astype(str).tolist()
+            # pandas >= 2 astype(str) keeps missing values as float NaN, which
+            # violates the list[str] type the profiling methods expect (and lets
+            # raw NaN leak into prompts). Blank them out before stringifying.
+            sample_values = dataframe_sample[column].fillna("").astype(str).tolist()
             column_data.append((column, sample_values))
 
         num_columns = len(column_data)
