@@ -14,7 +14,7 @@ from .llm import LLMClient, LocalLLMClient, OpenAICompatibleClient
 from .profiling import SemanticProfiler, profile_dataset
 from .topic import DatasetTopicGenerator
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     "AutoDDG",
