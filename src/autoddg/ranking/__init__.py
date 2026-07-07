@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from qrels import extract_query_rel
+from .qrels import extract_query_rel
 
 from .metrics import (
     compute_avg_single_Q,
