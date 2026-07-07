@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -11,6 +12,8 @@ from pandas import DataFrame
 
 from ..llm import LLMClient, LocalLLMClient
 from ..utils import load_prompts
+
+logger = logging.getLogger(__name__)
 
 
 @beartype
@@ -80,9 +83,12 @@ class SemanticProfiler:
         response_text = self._fix_json_response(response_text)
 
         try:
-            return json.loads(response_text)
+            parsed = json.loads(response_text)
         except json.JSONDecodeError:
             return None
+        # The model may return valid JSON that is not the expected object
+        # (e.g. a bare string or list); treat that as a failure so callers retry.
+        return parsed if isinstance(parsed, dict) else None
 
     def _get_semantic_types_group(
         self, column_data: list[tuple[str, list[str]]]
@@ -140,11 +146,15 @@ class SemanticProfiler:
             except (json.JSONDecodeError, AttributeError) as e:
                 return {}, {"error": str(e)}
 
-            # Validate and extract results
+            # Validate and extract results. Only accept dict-shaped values:
+            # anything else (bare string, list, ...) is a malformed answer for
+            # that column and is left out so the caller can retry it.
             results = {}
-            for column_name, _ in column_data:
-                if column_name in group_results:
-                    results[column_name] = group_results[column_name]
+            if isinstance(group_results, dict):
+                for column_name, _ in column_data:
+                    value = group_results.get(column_name)
+                    if isinstance(value, dict):
+                        results[column_name] = value
 
             # Record statistics
             stats = {
@@ -193,9 +203,23 @@ class SemanticProfiler:
 
         return (column_name, semantic_description)
 
+    @staticmethod
+    def _is_affirmative(value: Any) -> bool:
+        """True only for boolean True or yes/true strings (the model sometimes
+        answers "Yes"/"No" instead of the requested JSON booleans)."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in {"yes", "true"}
+        return False
+
     def _create_column_summary(self, column: str, semantic_description: dict[str, Any]) -> str:
         """
         Create a formatted summary string for a column's semantic description.
+
+        Fields whose values do not have the expected type are skipped rather
+        than crashing the whole summary: the model occasionally drifts from the
+        requested schema (e.g. "Temporal": "No" or a list of entity types).
 
         Args:
             column: Column name
@@ -206,25 +230,25 @@ class SemanticProfiler:
         """
         column_summary = f"**{column}**: "
         entity_type = semantic_description.get("Entity Type", "Unknown")
-        if entity_type and entity_type.lower() not in {"", "unknown"}:
+        if isinstance(entity_type, str) and entity_type.lower() not in {"", "unknown"}:
             column_summary += f"Represents {entity_type.lower()}. "
 
         temporal = semantic_description.get("Temporal", {})
-        if temporal.get("isTemporal"):
+        if isinstance(temporal, dict) and self._is_affirmative(temporal.get("isTemporal")):
             resolution = temporal.get("resolution", "unknown")
             column_summary += f"Contains temporal data (resolution: {resolution}). "
 
         spatial = semantic_description.get("Spatial", {})
-        if spatial.get("isSpatial"):
+        if isinstance(spatial, dict) and self._is_affirmative(spatial.get("isSpatial")):
             resolution = spatial.get("resolution", "unknown")
             column_summary += f"Contains spatial data (resolution: {resolution}). "
 
         domain_type = semantic_description.get("Domain-Specific Types", "Unknown")
-        if domain_type and domain_type.lower() not in {"", "unknown"}:
+        if isinstance(domain_type, str) and domain_type.lower() not in {"", "unknown"}:
             column_summary += f"Domain-specific type: {domain_type.lower()}. "
 
         function_context = semantic_description.get("Function/Usage Context", "Unknown")
-        if function_context and function_context.lower() not in {"", "unknown"}:
+        if isinstance(function_context, str) and function_context.lower() not in {"", "unknown"}:
             column_summary += f"Function/Usage context: {function_context.lower()}. "
 
         return column_summary
@@ -340,23 +364,40 @@ class SemanticProfiler:
                     response_text = self._fix_json_response(response_text)
                     try:
                         semantic_description = json.loads(response_text)
-                        if semantic_description is not None:
-                            results[column_name] = semantic_description
                     except json.JSONDecodeError:
-                        pass
+                        continue
+                    if isinstance(semantic_description, dict):
+                        results[column_name] = semantic_description
 
         elif use_group_prompting:
             # Group mode: process columns in groups or all at once
             if group_size == 0:
-                # Process all columns in a single API call
-                group_results, _ = self._get_semantic_types_group(column_data)
-                results.update(group_results)
+                groups = [column_data]
             else:
-                # Process columns in groups of group_size
-                for i in range(0, len(column_data), group_size):
-                    group = column_data[i : i + group_size]
-                    group_results, _ = self._get_semantic_types_group(group)
+                groups = [
+                    column_data[i : i + group_size] for i in range(0, len(column_data), group_size)
+                ]
+            for group in groups:
+                # Match the sequential mode's 3-attempt policy: a failed or
+                # partially answered group call is retried with just the
+                # still-missing columns instead of failing silently.
+                pending = group
+                last_error: Any = None
+                for _attempt in range(3):
+                    group_results, stats = self._get_semantic_types_group(pending)
                     results.update(group_results)
+                    last_error = stats.get("error", last_error)
+                    pending = [item for item in pending if item[0] not in results]
+                    if not pending:
+                        break
+                if pending:
+                    logger.warning(
+                        "Semantic profiling produced no usable result for %d "
+                        "column(s) after 3 attempts (last error: %s): %s",
+                        len(pending),
+                        last_error,
+                        ", ".join(item[0] for item in pending),
+                    )
 
         elif use_multi_threading:
             # Multi-threaded mode: process columns in parallel (only for OpenAI API)
