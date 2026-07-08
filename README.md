@@ -22,6 +22,16 @@ AutoDDG is an automated system for generating comprehensive, accurate, readable,
 
 ## Installation
 
+### Install from PyPI (Recommended)
+
+Install the latest stable release from PyPI:
+
+```bash
+pip install autoddg
+```
+
+### Development Installation
+
 Clone the repository and install dependencies via [uv (recommended)](https://docs.astral.sh/uv/):
 
 ```bash
@@ -51,16 +61,6 @@ Using uv (recommended):
 ```bash
 uv sync --extra local-llm
 ```
-
-Using pip:
-```bash
-pip install git+https://github.com/VIDA-NYU/AutoDDG@main[local-llm]
-# or
-pip install git+https://github.com/VIDA-NYU/AutoDDG@main transformers torch
-```
-
-> [!CAUTION]
-> This installation method is temporary. A **PyPI release** of `AutoDDG` will soon be available. The `git+https` method will be deprecated in favor of the PyPI index.
 
 ---
 
