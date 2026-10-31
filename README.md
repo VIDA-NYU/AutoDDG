@@ -125,6 +125,42 @@ print(description)
 pip install transformers torch
 ```
 
+### Using Claude Code or Codex
+
+AutoDDG can use a coding-agent CLI as its LLM, with that CLI's own login (for example a Claude or
+ChatGPT subscription) instead of an API key:
+
+```python
+from autoddg import AutoDDG, ClaudeCodeClient, CodexClient
+
+# Claude Code (`claude` installed and logged in)
+autoddg = AutoDDG(client=ClaudeCodeClient(), model_name="claude-sonnet-5-5")
+
+# Codex (`codex` installed and logged in)
+autoddg = AutoDDG(client=CodexClient(), model_name="gpt-6.1-sol")
+```
+
+Each completion is one headless CLI call, run in an empty temporary directory:
+
+- `ClaudeCodeClient` runs `claude -p` with no tools, no saved session and `--safe-mode`, so your
+  CLAUDE.md, hooks, plugins, skills and MCP servers stay out of the prompt. AutoDDG's system
+  message replaces Claude Code's system prompt.
+- `CodexClient` runs `codex exec` as an ephemeral run in a read-only sandbox, without your
+  `config.toml`. Codex has no system-prompt option, so the system message is placed before the
+  prompt. Codex still reads `AGENTS.md` from its home directory; pass `codex_home="..."` to use a
+  separate home, logged in once with `CODEX_HOME=... codex login`.
+
+Notes:
+
+- Neither CLI has a temperature setting; it is ignored, with a warning if it is not 0.
+- Each call starts a CLI process and carries the agent's own instructions (about 1,000 input
+  tokens for Claude Code and 17,000 for Codex in our tests), so calls are slower than an API.
+  Group prompting and multi-threading in the semantic profiler work with both clients.
+- Both clients take `effort=`, `timeout=`, `extra_args=` and `env=`. Pass a path as the first
+  argument to use a specific CLI build, e.g. `CodexClient("/opt/codex/bin/codex")`.
+- The evaluators (`GPTEvaluator` and the pairwise evaluators) still need an OpenAI-compatible
+  client.
+
 ### Semantic Profiler Processing Modes
 
 AutoDDG provides multiple processing modes for semantic profiling to optimize performance based on your use case:
