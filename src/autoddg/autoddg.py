@@ -7,7 +7,7 @@ from pandas import DataFrame
 
 from .description import DatasetDescriptionGenerator, SearchFocusedDescription
 from .evaluation import BaseEvaluator
-from .llm import LocalLLMClient, OpenAICompatibleClient
+from .llm import LLMClient, LocalLLMClient, OpenAICompatibleClient
 from .profiling import SemanticProfiler, profile_dataset
 from .topic import DatasetTopicGenerator
 
@@ -25,7 +25,8 @@ class AutoDDG:
     * optional description evaluation
 
     Args:
-        client (Any): OpenAI-compatible client (e.g. ``openai.OpenAI(...)``) or None
+        client (Any): OpenAI-compatible client (e.g. ``openai.OpenAI(...)``), an
+            ``LLMClient`` such as ``ClaudeCodeClient()`` or ``CodexClient()``, or None
             for local LLM.
         model_name (str): Model identifier (e.g. ``"gpt-4o"`` for API or
             ``"Qwen/Qwen2.5-7B-Instruct"`` for local).
@@ -124,6 +125,8 @@ class AutoDDG:
                 device=local_llm_device,
                 torch_dtype=local_llm_dtype,
             )
+        elif isinstance(client, LLMClient):
+            llm_client = client
         elif client is not None:
             llm_client = OpenAICompatibleClient(client)
         else:
