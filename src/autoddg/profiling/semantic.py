@@ -156,23 +156,12 @@ class SemanticProfiler:
                     if isinstance(value, dict):
                         results[column_name] = value
 
-            # Record statistics
+            # Record statistics (LLMClient responses are dicts)
+            usage = response.get("usage") or {}
             stats = {
-                "input_tokens": (
-                    response.usage.prompt_tokens
-                    if hasattr(response, "usage") and response.usage
-                    else 0
-                ),
-                "output_tokens": (
-                    response.usage.completion_tokens
-                    if hasattr(response, "usage") and response.usage
-                    else 0
-                ),
-                "total_tokens": (
-                    response.usage.total_tokens
-                    if hasattr(response, "usage") and response.usage
-                    else 0
-                ),
+                "input_tokens": usage.get("prompt_tokens") or 0,
+                "output_tokens": usage.get("completion_tokens") or 0,
+                "total_tokens": usage.get("total_tokens") or 0,
                 "num_columns": len(column_data),
             }
 
