@@ -150,3 +150,106 @@ def test_describe_dataframe_keeps_every_step():
     assert record.prompt in client.prompts and "Rent Trends" in record.prompt
     assert len(client.prompts) == 4  # topic, semantics, description, search
     assert check_description(record)[0].status == "match"  # 4 rows
+
+
+# Cases found in urbantrace's existing descriptions
+COLUMNS = {
+    "nb_rows": 28983,
+    "columns": [
+        {"name": "BoroCD", "minimum": 101.0, "maximum": 595.0, "num_distinct_values": 71},
+        {"name": "CounDist", "minimum": 1.0, "maximum": 51.0, "num_distinct_values": 51},
+        {"name": "codes", "num_distinct_values": 427},
+        {"name": "income", "minimum": 17210.0, "maximum": 206489.5},
+        {"name": "ela_a", "mean": 0.3},
+        {"name": "ela_b", "mean": 0.531},
+        {
+            "name": "bikeid",
+            "minimum": 0.0,
+            "maximum": 52000.0,  # the cluster below ends at 1,981, the column does not
+            "coverage": [{"range": {"gte": 0.0, "lte": 1981.0}}],
+        },
+        {
+            "name": "desdate",
+            "earliest": -129081600.0,
+            "latest": 1683590400.0,
+        },  # 1965-11-29 .. 2023-05-09
+        {"name": "created_at", "earliest": 1589412490.0, "latest": 1589412490.0},  # 2020-05-13
+    ],
+}
+
+
+def check(text, **kwargs):
+    return [(c.text, c.status) for c in check_numbers(text, COLUMNS, **kwargs)]
+
+
+def test_ranges_must_be_a_columns_extremes():
+    assert check("BoroCD spans 0 to 503, CounDist 1 to 51.") == [
+        ("0", "missing"),
+        ("503", "missing"),
+        ("1", "match"),
+        ("51", "match"),
+    ]
+    assert check("Values span 101–595.") == [("101", "match"), ("595", "match")]
+    assert check("between 1 and 51") == [("1", "match"), ("51", "match")]
+    source = check_numbers("from 0 to 503", COLUMNS)[0].source
+    assert "no column has this range" in source
+
+
+def test_year_ranges_must_be_a_date_columns_years():
+    assert check("designation dates from 1966 to 2022", sample="1966-01-01,2022-02-02") == [
+        ("1966", "missing"),
+        ("2022", "missing"),
+    ]
+    assert check("designated from 1965 to 2023") == [("1965", "match"), ("2023", "match")]
+    named = check("yearly values (2005–2023)", references={"names": "2005 2006 2023"})
+    assert named == [("2005", "match"), ("2023", "match")]
+
+
+def test_bounds():
+    assert check("over 400 violation codes, over $200,000 at most") == [
+        ("400", "match"),
+        ("200,000", "match"),
+    ]
+    assert check("over 600 codes") == [("600", "missing")]  # the max of 595 is not over 600
+    assert check("BoroCD reaches over about 600") == [("600", "close")]  # hedged, column named
+    assert check("over about 600 codes") == [("600", "missing")]  # BoroCD is not this sentence's
+
+
+def test_percentages_can_be_stored_as_fractions():
+    assert check("from roughly 30% in 2013 to about 53% in 2024") == [
+        ("30%", "match"),
+        ("2013", "match"),
+        ("53%", "match"),
+        ("2024", "missing"),  # after the dates
+    ]
+
+
+def test_value_clusters_do_not_support_numbers():
+    assert check("about 2,000 segments") == [("2,000", "missing")]
+
+
+def test_close_matches_need_the_column_in_the_sentence():
+    assert check("about 52,000 segments.") == [("52,000", "match")]  # largest value: exact
+    assert check("roughly 425 types.") == [("425", "missing")]  # 427 distinct codes, unnamed
+    assert check("roughly 425 codes.") == [("425", "close")]
+    assert check("Codes number 427. About 425 types.") == [("427", "match"), ("425", "missing")]
+
+
+def test_written_dates():
+    snapshot = {"columns": [COLUMNS["columns"][-1]]}  # created_at only
+    snapshot_checks = check_numbers("a single snapshot date (May 14, 2020)", snapshot)
+    assert [(c.text, c.status) for c in snapshot_checks] == [("May 14, 2020", "missing")]
+    assert "created_at: 2020-05-13 to 2020-05-13" in snapshot_checks[0].source
+    assert check_numbers("on May 13, 2020", snapshot)[0].status == "match"
+    assert check("dates from 1965‑11‑29 to 2023‑05‑09") == [  # non-breaking hyphens
+        ("1965‑11‑29", "match"),
+        ("2023‑05‑09", "match"),
+    ]
+    assert check("dates from 1965-11-29 to 2023-06-01") == [
+        ("1965-11-29", "missing"),
+        ("2023-06-01", "missing"),
+    ]
+    assert check("placeholder values such as 9999-09-09", sample="x,9999-09-09\n") == [
+        ("9999-09-09", "match")
+    ]
+    assert check("designated in June 1990") == [("June 1990", "match")]

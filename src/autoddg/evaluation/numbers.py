@@ -2,15 +2,31 @@
 
 A deterministic complement to the LLM judges: every number a description states is looked up in
 the profile, so made-up or overstated figures can be found without another model call.
+
+What is checked:
+
+- single numbers against the profile's facts: row and column counts, distinct counts, minimums,
+  maximums and means, up to the precision they are written with ("match") or within 2% ("close").
+  "over 400" and "up to 50" are bounds: they match a fact at most 1.5 times past them. Close
+  matches and bounds only count against dataset-level facts (row and column counts, the smallest
+  and largest value of any column) and columns the same sentence names
+- ranges ("0 to 51", "between 2 and 9", "2005–2023") as pairs against each column's minimum and
+  maximum (or earliest and latest date): both ends must belong to the same column
+- dates ("May 14, 2020", "2016-03-22", "June 2021", and ranges of them) against each date
+  column's earliest and latest dates
+- percentages against missing-value ratios and against values (also when stored as fractions)
+- years within the dates of the dataset, and anything that appears in the sample, the column
+  names or a reference text (dataset name, original description)
+
+k-means value clusters are not facts about a column, so they never support a number.
 """
 
 from __future__ import annotations
 
 import math
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
@@ -18,19 +34,67 @@ if TYPE_CHECKING:
 
 Status = Literal["match", "close", "missing"]
 
-# A number written in prose: 3,619 / 12.5 / 40%; not part of a word, a date written with dashes
-# or an identifier such as COVID-19
-_NUMBER = re.compile(
-    r"(?<![\w.\-/])(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(\s*(?:%|percent\b))?(?![\w\-/]|\.\d)"
+CLOSE = 0.02  # relative difference still counted as close ("about 3,600" for 3,619)
+BOUND = 1.5  # "over 400" matches a fact from 400 to 600
+_YEARS = (1800, 2100)
+
+# Dashes and spaces that models write in place of "-" and " "; replaced one character for one, so
+# positions in the normalized text are positions in the original
+_NORMALIZE = str.maketrans(dict.fromkeys("‐‑‒–—―−", "-") | {" ": " ", " ": " "})
+
+_NUM = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?(?!\d)|\d+(?:\.\d+)?"
+_APPROX = r"(?:(?:about|roughly|approximately|around|nearly|almost|some)\s+)?"
+_PCT = r"(\s*(?:%|percent\b))?"
+# A number written in prose: 3,619 / 12.5 / 40%; not part of a word or of an identifier such as
+# COVID-19 or 18b
+_SINGLE = re.compile(rf"(?<![\w.\-/])({_NUM}){_PCT}(?![\w\-/]|\.\d)")
+_RANGE = re.compile(
+    rf"(?<![\w.\-/])(?:(between)\s+)?{_APPROX}\$?({_NUM}){_PCT}\s*"
+    rf"(?(1)and|(?:-|to|through|until))\s*{_APPROX}\$?({_NUM}){_PCT}(?![\w\-/]|\.\d)",
+    re.IGNORECASE,
+)
+_HEDGED = re.compile(
+    r"(?:about|roughly|approximately|around|nearly|almost|some)\s+\$?$", re.IGNORECASE
 )
 _ANY_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?!\d)|\d+(?:\.\d+)?")
-_YEARS = (1800, 2100)
-CLOSE = 0.02  # relative difference still counted as close ("about 3,600" for 3,619)
+_LOWER = re.compile(
+    r"(?:over|more than|above|exceeds?|exceeding|at least|upwards of)\s+" + _APPROX + r"\$?$",
+    re.IGNORECASE,
+)
+_UPPER = re.compile(
+    r"(?:up to|under|less than|below|at most|fewer than|reaching)\s+" + _APPROX + r"\$?$",
+    re.IGNORECASE,
+)
+
+_MONTHS = {
+    name: i + 1
+    for i, name in enumerate(
+        ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+    )
+}
+_MONTH = (
+    r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|"
+    r"Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?"
+)
+_DATE_PATTERNS = (
+    # 2016-03-22
+    (re.compile(r"(?<![\w\-])(\d{4})-(\d{1,2})-(\d{1,2})(?![\w\-])"), ("y", "m", "d")),
+    # May 14, 2020
+    (
+        re.compile(rf"\b{_MONTH}\s+(\d{{1,2}})(?:st|nd|rd|th)?,?\s+(\d{{4}})\b", re.I),
+        ("M", "d", "y"),
+    ),
+    # 14 May 2020
+    (re.compile(rf"\b(\d{{1,2}})\s+{_MONTH}\s+(\d{{4}})\b", re.I), ("d", "M", "y")),
+    # May 2020
+    (re.compile(rf"\b{_MONTH}\s+(\d{{4}})\b", re.I), ("M", "y")),
+)
+_DATE_RANGE_GAP = re.compile(r"^\s*(?:-|to|through|until|and)\s*$", re.I)
 
 
 @dataclass
 class NumberCheck:
-    """A number found in a description and what in the profile supports it"""
+    """A number (or date) found in a description and what in the profile supports it"""
 
     text: str
     start: int
@@ -40,49 +104,28 @@ class NumberCheck:
     source: str = ""
 
 
-def _numbers(text: str) -> Iterable[tuple[re.Match[str], float, bool]]:
-    for match in _NUMBER.finditer(text):
-        yield match, float(match.group(1).replace(",", "")), bool(match.group(2))
+@dataclass
+class _Date:
+    start: int
+    end: int
+    first: date  # first day the text covers
+    last: date  # last day it covers ("May 2020": May 1 to May 31)
 
 
-def _facts(metadata: dict[str, Any]) -> list[tuple[float, str]]:
-    """Numbers the profile states, each with where it comes from"""
-    facts: list[tuple[float, str]] = []
-
-    def add(value: Any, source: str) -> None:
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
-            facts.append((float(value), source))
-
-    add(metadata.get("nb_rows"), "row count")
-    add(metadata.get("nb_columns"), "column count")
-    for column in metadata.get("columns", []):
-        name = column.get("name", "?")
-        add(column.get("num_distinct_values"), f"distinct values of {name}")
-        for key in ("minimum", "maximum", "mean"):
-            add(column.get(key), f"{key} of {name}")
-        for coverage in column.get("coverage", []):
-            for bound in ("gte", "lte"):
-                add(coverage.get("range", {}).get(bound), f"value range of {name}")
-    return facts
+def _number(text: str) -> float:
+    return float(text.replace(",", ""))
 
 
-def _percentages(metadata: dict[str, Any]) -> list[tuple[float, str]]:
-    return [
-        (100 * column["missing_values_ratio"], f"missing values of {column.get('name', '?')}")
-        for column in metadata.get("columns", [])
-        if isinstance(column.get("missing_values_ratio"), (int, float))
-    ]
+def _fmt(value: float) -> str:
+    return f"{value:,.10g}"
 
 
-def _year_span(metadata: dict[str, Any]) -> tuple[int, int] | None:
-    stamps = []
-    for column in metadata.get("columns", []):
-        stamps += [column[key] for key in ("earliest", "latest") if key in column]
-    for temporal in metadata.get("temporal_coverage", []):
-        for entry in temporal.get("ranges", []):
-            stamps += list(entry.get("range", {}).values())
-    years = [datetime.fromtimestamp(s, tz=timezone.utc).year for s in stamps]
-    return (min(years), max(years)) if years else None
+def _day(timestamp: float) -> date:
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).date()
+
+
+def _timestamp(day: date) -> float:
+    return datetime(day.year, day.month, day.day, tzinfo=timezone.utc).timestamp()
 
 
 def _compare(value: float, written: str, fact: float) -> Status | None:
@@ -94,6 +137,117 @@ def _compare(value: float, written: str, fact: float) -> Status | None:
     return None
 
 
+def _columns(metadata: dict[str, Any]) -> list[dict[str, Any]]:
+    return [c for c in metadata.get("columns", []) if isinstance(c, dict)]
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _facts(metadata: dict[str, Any]) -> list[tuple[float, str, str | None]]:
+    """
+    Numbers the profile states about the data: (value, where it comes from, column)
+
+    The column is None for dataset-level facts: row and column counts, and the smallest and
+    largest value of any column.
+    """
+    facts: list[tuple[float, str, str | None]] = [
+        (float(metadata[key]), label, None)
+        for key, label in (("nb_rows", "row count"), ("nb_columns", "column count"))
+        if _is_number(metadata.get(key))
+    ]
+    for column in _columns(metadata):
+        name = str(column.get("name", "?"))
+        for key, label in (
+            ("num_distinct_values", "distinct values"),
+            ("minimum", "minimum"),
+            ("maximum", "maximum"),
+            ("mean", "mean"),
+        ):
+            if _is_number(column.get(key)):
+                facts.append((float(column[key]), f"{label} of {name}", name))
+    minimums = [(f, s) for f, s, c in facts if s.startswith("minimum of ")]
+    maximums = [(f, s) for f, s, c in facts if s.startswith("maximum of ")]
+    if minimums:
+        value, label = min(minimums)
+        facts.append((value, f"smallest value ({label})", None))
+    if maximums:
+        value, label = max(maximums)
+        facts.append((value, f"largest value ({label})", None))
+    return facts
+
+
+def _percent_facts(
+    metadata: dict[str, Any], facts: list[tuple[float, str, str | None]]
+) -> list[tuple[float, str, str | None]]:
+    percents: list[tuple[float, str, str | None]] = [
+        (100 * c["missing_values_ratio"], f"missing values of {c.get('name', '?')}", None)
+        for c in _columns(metadata)
+        if _is_number(c.get("missing_values_ratio"))
+    ]
+    # values may be percentages already, or fractions (0.53 for 53%)
+    values = [(f, s, c) for f, s, c in facts if s not in ("row count", "column count")]
+    percents += values
+    percents += [(100 * f, f"{s} ({_fmt(f)})", c) for f, s, c in values if 0 < abs(f) <= 1]
+    return percents
+
+
+def _named(column: str, sentence: str) -> bool:
+    """True when the sentence mentions the column: a word of its name starts a word of the text"""
+    words = re.findall(r"[a-z0-9]+", sentence.lower())
+    tokens = [t for t in re.findall(r"[a-z0-9]+", column.lower()) if len(t) > 1]
+    return any(word.startswith(token) for token in tokens for word in words)
+
+
+def _sentence(text: str, position: int) -> str:
+    start = max(text.rfind(". ", 0, position), text.rfind("\n", 0, position)) + 1
+    end = min(
+        i for i in (text.find(". ", position), text.find("\n", position), len(text)) if i >= 0
+    )
+    return text[start:end]
+
+
+def _ranges(metadata: dict[str, Any]) -> list[tuple[float, float, str]]:
+    return [
+        (float(c["minimum"]), float(c["maximum"]), str(c.get("name", "?")))
+        for c in _columns(metadata)
+        if _is_number(c.get("minimum")) and _is_number(c.get("maximum"))
+    ]
+
+
+def _date_ranges(metadata: dict[str, Any]) -> list[tuple[date, date, str]]:
+    return [
+        (_day(c["earliest"]), _day(c["latest"]), str(c.get("name", "?")))
+        for c in _columns(metadata)
+        if _is_number(c.get("earliest")) and _is_number(c.get("latest"))
+    ]
+
+
+def _find_dates(text: str) -> list[_Date]:
+    found: list[_Date] = []
+    taken: list[tuple[int, int]] = []
+    for pattern, parts in _DATE_PATTERNS:
+        for match in pattern.finditer(text):
+            if any(match.start() < end and start < match.end() for start, end in taken):
+                continue
+            values = dict(zip(parts, match.groups(), strict=True))
+            try:
+                year = int(values["y"])
+                month = _MONTHS[values["M"][:3].lower()] if "M" in values else int(values["m"])
+                if "d" in values:
+                    first = last = date(year, month, int(values["d"]))
+                else:
+                    first = date(year, month, 1)
+                    following = date(year + month // 12, month % 12 + 1, 1)
+                    last = date.fromordinal(following.toordinal() - 1)
+            except (ValueError, KeyError):
+                continue
+            found.append(_Date(match.start(), match.end(), first, last))
+            taken.append((match.start(), match.end()))
+    return sorted(found, key=lambda d: d.start)
+
+
 def check_numbers(
     text: str,
     metadata: dict[str, Any] | None,
@@ -102,13 +256,10 @@ def check_numbers(
     references: dict[str, str | None] | None = None,
 ) -> list[NumberCheck]:
     """
-    Check every number of a description against a profile
+    Check every number and date of a description against a profile
 
-    A number matches when the profile states it (row and column counts, distinct counts,
-    extremes, means, value ranges, missing-value percentages) up to the precision it is written
-    with, and is close within 2%. A year matches when it falls within the dataset's dates. Numbers
-    that appear in the sample or in a reference text (the dataset name, the original description)
-    match that text. Everything else is missing: not necessarily wrong, but worth checking.
+    See the module documentation for the rules. A number that is "missing" is not necessarily
+    wrong, but nothing in the profile, the sample or the references supports it.
 
     Args:
         text: Description
@@ -117,49 +268,198 @@ def check_numbers(
         references: Other texts to look for numbers in, by label
 
     Returns:
-        One check per number, in order
+        One check per number or date, in order
     """
     metadata = metadata or {}
+    normalized = text.translate(_NORMALIZE)
     facts = _facts(metadata)
-    percentages = _percentages(metadata)
-    span = _year_span(metadata)
-    column_names = " ".join(str(c.get("name", "")) for c in metadata.get("columns", []))
+    percent_facts = _percent_facts(metadata, facts)
+    ranges = _ranges(metadata)
+    date_ranges = _date_ranges(metadata)
+    years = [y for first, last, _ in date_ranges for y in (first.year, last.year)]
+    span = (min(years), max(years)) if years else None
+    column_names = " ".join(str(c.get("name", "")) for c in _columns(metadata))
     texts = {"sample": sample, "column names": column_names, **(references or {})}
     # Any digits count here: values of a sample or a name also sit inside identifiers, dates and
     # snake_case words (2018_central_park)
     in_texts = {
-        label: {float(n.replace(",", "")) for n in _ANY_NUMBER.findall(content or "")}
+        label: {_number(n) for n in _ANY_NUMBER.findall(content or "")}
         for label, content in texts.items()
     }
+    raw_texts = {label: (content or "").translate(_NORMALIZE) for label, content in texts.items()}
 
-    checks = []
-    for match, value, percent in _numbers(text):
-        written = match.group(1).replace(",", "")
+    checks: list[NumberCheck] = []
+    taken: list[tuple[int, int]] = []
+
+    def free(start: int, end: int) -> bool:
+        return not any(start < e and s < end for s, e in taken)
+
+    def add(start: int, end: int, value: float, status: Status, source: str) -> None:
+        checks.append(NumberCheck(text[start:end], start, end, value, status, source))
+        taken.append((start, end))
+
+    def in_references(value: float) -> str | None:
+        for label, numbers in in_texts.items():
+            if value in numbers:
+                return f"in the {label}"
+        return None
+
+    def literal_in_references(snippet: str) -> str | None:
+        for label, content in raw_texts.items():
+            if snippet and snippet in content:
+                return f"in the {label}"
+        return None
+
+    # 1. Dates, and ranges of two dates
+    dates = _find_dates(normalized)
+    paired: set[int] = set()
+    for i, (a, b) in enumerate(zip(dates, dates[1:], strict=False)):
+        if not _DATE_RANGE_GAP.match(normalized[a.end : b.start]):
+            continue
+        paired |= {i, i + 1}
+        exact = [
+            n for lo, hi, n in date_ranges if a.first <= lo <= a.last and b.first <= hi <= b.last
+        ]
+        if exact:
+            status, source = "match", f"dates of {exact[0]}"
+        else:
+            status = "missing"
+            source = "no date column has this range" + "".join(
+                f"; {n}: {lo} to {hi}" for lo, hi, n in date_ranges[:3]
+            )
+        for d in (a, b):
+            add(d.start, d.end, _timestamp(d.first), status, source)
+    for i, d in enumerate(dates):
+        if i in paired:
+            continue
+        within = [n for lo, hi, n in date_ranges if d.last >= lo and d.first <= hi]
+        literal = literal_in_references(normalized[d.start : d.end])
+        if within:
+            status, source = "match", f"within the dates of {within[0]}"
+        elif literal:
+            status, source = "match", literal
+        else:
+            status = "missing"
+            source = "outside the dates" + "".join(
+                f"; {n}: {lo} to {hi}" for lo, hi, n in date_ranges[:3]
+            )
+        add(d.start, d.end, _timestamp(d.first), status, source)
+
+    # 2. Ranges of two numbers
+    for match in _RANGE.finditer(normalized):
+        if not free(match.start(2), match.end(4)):
+            continue
+        low_text, high_text = match.group(2), match.group(4)
+        low, high = _number(low_text), _number(high_text)
+        if low >= high:  # "4-3" or a list, not a range
+            continue
+        is_years = all(
+            "," not in t and v.is_integer() and _YEARS[0] <= v <= _YEARS[1]
+            for t, v in ((low_text, low), (high_text, high))
+        )
         status: Status = "missing"
         source = ""
+        if is_years:
+            exact = [n for lo, hi, n in date_ranges if (lo.year, hi.year) == (low, high)]
+            # not the sample: any two years of a date column sit somewhere in its values
+            named = [
+                label
+                for label, nums in in_texts.items()
+                if label != "sample" and low in nums and high in nums
+            ]
+            if exact:
+                status, source = "match", f"years of {exact[0]}"
+            elif named:
+                status, source = "match", f"in the {named[0]}"
+            else:
+                source = "no date column spans these years" + "".join(
+                    f"; {n}: {lo.year} to {hi.year}" for lo, hi, n in date_ranges[:3]
+                )
+        else:
+            for lo, hi, name in ranges:
+                ends = (_compare(low, low_text, lo), _compare(high, high_text, hi))
+                if ends == ("match", "match"):
+                    status, source = "match", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
+                    break
+                if None not in ends and status == "missing":
+                    status, source = "close", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
+            if status == "missing":
+                literal = literal_in_references(normalized[match.start(2) : match.end(4)])
+                if literal:
+                    status, source = "match", literal
+                else:
+                    near = [
+                        f"{n}: {_fmt(lo)} to {_fmt(hi)}"
+                        for lo, hi, n in ranges
+                        if _compare(low, low_text, lo) or _compare(high, high_text, hi)
+                    ]
+                    source = "no column has this range" + (
+                        "; " + "; ".join(near[:3]) if near else ""
+                    )
+        for group in (2, 4):
+            add(match.start(group), match.end(group), _number(match.group(group)), status, source)
+
+    # 3. Single numbers
+    for match in _SINGLE.finditer(normalized):
+        start, end = match.start(), match.end()
+        if not free(start, end):
+            continue
+        written = match.group(1).replace(",", "")
+        value = _number(match.group(1))
+        percent = bool(match.group(2))
+        before = normalized[max(0, start - 40) : start]
+        bound = "lower" if _LOWER.search(before) else "upper" if _UPPER.search(before) else None
         is_year = not percent and "," not in match.group(1) and value.is_integer()
         is_year = is_year and _YEARS[0] <= value <= _YEARS[1]
+        status = "missing"
+        source = ""
         if is_year and span and span[0] <= value <= span[1]:
             status, source = "match", f"within the dates ({span[0]}–{span[1]})"
         else:
-            candidates = percentages if percent else facts
-            for fact, fact_source in candidates:
-                found = _compare(value, written, fact)
-                if is_year and found == "close":  # 2023 is not "close" to a value of 2,024.6
-                    continue
-                if found == "match" or (found == "close" and status == "missing"):
-                    status, source = found, f"{fact_source}: {fact:,.10g}"
-                    if found == "match":
+            candidates = percent_facts if percent else facts
+            sentence = _sentence(normalized, start)
+
+            def nearby(column: str | None, sentence: str = sentence) -> bool:
+                # approximate matches only count against dataset-level facts and columns the
+                # sentence names: "about 2,000 segments" is not about 1,991 distinct street names
+                return column is None or _named(column, sentence)
+
+            if bound and not is_year:
+                for fact, fact_source, column in candidates:
+                    inside = (
+                        value <= fact <= value * BOUND
+                        if bound == "lower"
+                        else value / BOUND <= fact <= value
+                    )
+                    if inside and nearby(column):
+                        word = "over" if bound == "lower" else "up to"
+                        status = "match"
+                        source = f"{word} {match.group(1)}: {fact_source}: {_fmt(fact)}"
                         break
+            if status == "missing":
+                hedged = bool(_HEDGED.search(before))
+                for fact, fact_source, column in candidates:
+                    found = _compare(value, written, fact)
+                    if is_year and found == "close":  # 2023 is not "close" to a value of 2,024.6
+                        continue
+                    if found == "close" and not nearby(column):
+                        continue
+                    # 595 is not close to "over 600", unless the text hedges ("over about 600")
+                    wrong_side = (bound == "lower" and fact < value) or (
+                        bound == "upper" and fact > value
+                    )
+                    if found == "close" and wrong_side and not hedged:
+                        continue
+                    if found == "match" or (found == "close" and status == "missing"):
+                        status, source = found, f"{fact_source}: {_fmt(fact)}"
+                        if found == "match":
+                            break
         if status == "missing":
-            for label, numbers in in_texts.items():
-                if value in numbers:
-                    status, source = "match", f"in the {label}"
-                    break
-        checks.append(
-            NumberCheck(match.group(0), match.start(), match.end(), value, status, source)
-        )
-    return checks
+            source = in_references(value) or ""
+            status = "match" if source else "missing"
+        add(start, end, value, status, source)
+
+    return sorted(checks, key=lambda c: c.start)
 
 
 def check_description(record: DatasetDescription, text: str | None = None) -> list[NumberCheck]:
@@ -171,7 +471,7 @@ def check_description(record: DatasetDescription, text: str | None = None) -> li
         text: Text to check instead of ``record.description``, e.g. its search-expanded version
 
     Returns:
-        One check per number, in order
+        One check per number or date, in order
     """
     return check_numbers(
         record.description if text is None else text,
