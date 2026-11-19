@@ -55,6 +55,18 @@ Alternatively, install directly via pip:
 pip install git+https://github.com/VIDA-NYU/AutoDDG@main
 ```
 
+**Data profiling** uses [atlas-profiler](https://github.com/VIDA-NYU/atlas-profiler) 0.1.0 or
+later. Until that version is on PyPI, `uv sync` installs it from GitHub (see `[tool.uv.sources]` in
+`pyproject.toml`); with pip, install it first:
+
+```bash
+pip install git+https://github.com/VIDA-NYU/atlas-profiler@feat/html-report
+```
+
+atlas-profiler depends on PyTorch for its optional spatial column classifier, so installs include
+`torch`. AutoDDG does not run the classifier unless you ask for it with
+`profile_dataframe(df, geo_classifier=True)`.
+
 **For local LLM support** (Qwen, Llama, etc.), install with optional dependencies:
 
 Using uv (recommended):

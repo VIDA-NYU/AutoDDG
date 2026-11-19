@@ -31,15 +31,15 @@ classifiers = [
 dynamic = ["version"]
 
 dependencies = [
-  "datamart_profiler==0.11",
-  "nltk==3.9.1",
-  "numpy>=1.26",
-  "openai==1.61.0",
-  "pandas>=2.2.3",
-  "rank-bm25==0.2.2",
-  "scikit-learn==1.6.1",
+  "atlas-profiler>=0.1.0",
   "beartype>=0.18.5",
-  "pyyaml==6.0.2",
+  "nltk>=3.9.1",
+  "numpy>=1.26",
+  "openai>=1.61.0",
+  "pandas>=2.2.3",
+  "pyyaml>=6.0.2",
+  "rank-bm25>=0.2.2",
+  "scikit-learn>=1.6.1",
 ]
 
 [project.optional-dependencies]
@@ -83,6 +83,10 @@ dev = [
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.uv.sources]
+# atlas-profiler 0.1.0 is not on PyPI yet; build it from GitHub until it is
+atlas-profiler = { git = "https://github.com/VIDA-NYU/atlas-profiler", branch = "feat/html-report" }
 
 [tool.black]
 line-length = 100

@@ -193,20 +193,24 @@ class AutoDDG:
             use_topic=use_topic,
         )
 
-    def profile_dataframe(self, dataframe: DataFrame) -> tuple[str, str]:
+    def profile_dataframe(
+        self, dataframe: DataFrame, *, geo_classifier: bool = False
+    ) -> tuple[str, str]:
         """
-        Summarise structure and coverage using the datamart profiler
+        Summarise structure and coverage using atlas-profiler
 
-        Ref: https://pypi.org/project/datamart-profiler/
+        Ref: https://github.com/VIDA-NYU/atlas-profiler
 
         Args:
             dataframe: Input frame
+            geo_classifier: Run atlas-profiler's spatial column classifier (loads PyTorch and
+                downloads its model on first use)
 
         Returns:
             (profile_text, semantic_notes)
         """
 
-        return profile_dataset(dataframe)
+        return profile_dataset(dataframe, geo_classifier=geo_classifier)
 
     def analyze_semantics(
         self,
