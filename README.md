@@ -245,6 +245,44 @@ semantic_profile = autoddg.analyze_semantics(
 - Group-prompting works with both API and local LLMs
 - Batch processing takes precedence over other modes if enabled
 
+### Describing a Frame in One Call and Reviewing the Results
+
+`describe_dataframe` runs the whole pipeline (profile, sample, topic, semantic profile,
+description, search expansion) and returns a `DatasetDescription` that keeps every intermediate
+result:
+
+```python
+import json
+from autoddg import AutoDDG, DescriptionReport, check_description
+
+record = autoddg.describe_dataframe(
+    df,
+    title="NYC Parks drinking fountains",
+    original_description=None,  # an existing description, if any, informs the topic
+    semantic_options={"use_group_prompting": True},
+)
+print(record.description)
+json.dump(record.to_dict(), open("fountains.json", "w"))  # DatasetDescription.from_dict reads it back
+```
+
+`check_description` looks up every number of a description in the dataset's profile (row and
+column counts, distinct counts, extremes, means, missing-value percentages, dates, column names)
+and marks it found, within 2%, or not found:
+
+```python
+for check in check_description(record):
+    print(check.text, check.status, check.source)
+# 3,619 match row count: 3,619
+```
+
+`DescriptionReport` renders a batch of records as one standalone HTML page for review: each
+generated description next to its original one, numbers highlighted by their check, and the
+profile, semantic profile, topic and prompt behind each description:
+
+```python
+DescriptionReport(records, title="Descriptions").save("descriptions.html")
+```
+
 ### Quick Jupyter Notebook Start
 
 For a much better introduction, we **highly recommend** starting with the [quick_start notebook with an example dataset](./examples/quick_start.ipynb).

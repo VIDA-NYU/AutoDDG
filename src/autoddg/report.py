@@ -1,209 +1,17 @@
 """Review page for generated descriptions
 
-Renders a batch of descriptions as one standalone HTML page: each dataset's generated description
-next to its original one, with every number in the generated text checked against the dataset's
-profile, and the inputs the description was built from (profile, semantic profile, topic, prompt)
-one click away.
+Renders a batch of ``DatasetDescription`` records as one standalone HTML page. The page only
+displays: the descriptions come from ``AutoDDG.describe_dataframe`` and the number checks from
+``autoddg.evaluation.check_description``.
 """
 
 from __future__ import annotations
 
 import html
-import math
-import re
-from collections.abc import Iterable
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
 
-Status = Literal["match", "close", "missing"]
-
-# A number written in prose: 3,619 / 12.5 / 40%; not part of a word, a date written with dashes
-# or an identifier such as COVID-19
-_NUMBER = re.compile(
-    r"(?<![\w.\-/])(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(\s*(?:%|percent\b))?(?![\w\-/]|\.\d)"
-)
-_ANY_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?!\d)|\d+(?:\.\d+)?")
-_YEARS = (1800, 2100)
-CLOSE = 0.02  # relative difference still counted as close ("about 3,600" for 3,619)
-
-
-@dataclass
-class NumberCheck:
-    """A number found in a description and what in the profile supports it"""
-
-    text: str
-    start: int
-    end: int
-    value: float
-    status: Status
-    source: str = ""
-
-
-@dataclass
-class ReportEntry:
-    """One dataset of the report
-
-    Args:
-        name: Dataset name
-        description: Generated description
-        original_description: Existing description, shown next to the generated one
-        metadata: Output of ``autoddg.profiling.profile_metadata``, used to check numbers
-        dataset_sample: CSV sample given to the model
-        topic: Generated topic
-        search_description: Search-expanded description
-        profile_text: Profile summary given to the model
-        semantic_profile: Semantic profile given to the model
-        prompt: Prompt that produced the description
-        profile_report_url: Link to the dataset's atlas-profiler report
-    """
-
-    name: str
-    description: str
-    original_description: str | None = None
-    metadata: dict[str, Any] | None = None
-    dataset_sample: str | None = None
-    topic: str | None = None
-    search_description: str | None = None
-    profile_text: str | None = None
-    semantic_profile: str | None = None
-    prompt: str | None = None
-    profile_report_url: str | None = None
-    checks: list[NumberCheck] = field(default_factory=list, init=False)
-
-    def __post_init__(self) -> None:
-        self.checks = check_numbers(
-            self.description,
-            self.metadata,
-            sample=self.dataset_sample,
-            references={
-                "dataset name": self.name,
-                "original description": self.original_description,
-            },
-        )
-
-
-def _numbers(text: str) -> Iterable[tuple[re.Match[str], float, bool]]:
-    for match in _NUMBER.finditer(text):
-        yield match, float(match.group(1).replace(",", "")), bool(match.group(2))
-
-
-def _facts(metadata: dict[str, Any]) -> list[tuple[float, str]]:
-    """Numbers the profile states, each with where it comes from"""
-    facts: list[tuple[float, str]] = []
-
-    def add(value: Any, source: str) -> None:
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
-            facts.append((float(value), source))
-
-    add(metadata.get("nb_rows"), "row count")
-    add(metadata.get("nb_columns"), "column count")
-    for column in metadata.get("columns", []):
-        name = column.get("name", "?")
-        add(column.get("num_distinct_values"), f"distinct values of {name}")
-        for key in ("minimum", "maximum", "mean"):
-            add(column.get(key), f"{key} of {name}")
-        for coverage in column.get("coverage", []):
-            for bound in ("gte", "lte"):
-                add(coverage.get("range", {}).get(bound), f"value range of {name}")
-    return facts
-
-
-def _percentages(metadata: dict[str, Any]) -> list[tuple[float, str]]:
-    return [
-        (100 * column["missing_values_ratio"], f"missing values of {column.get('name', '?')}")
-        for column in metadata.get("columns", [])
-        if isinstance(column.get("missing_values_ratio"), (int, float))
-    ]
-
-
-def _year_span(metadata: dict[str, Any]) -> tuple[int, int] | None:
-    stamps = []
-    for column in metadata.get("columns", []):
-        stamps += [column[key] for key in ("earliest", "latest") if key in column]
-    for temporal in metadata.get("temporal_coverage", []):
-        for entry in temporal.get("ranges", []):
-            stamps += list(entry.get("range", {}).values())
-    years = [datetime.fromtimestamp(s, tz=timezone.utc).year for s in stamps]
-    return (min(years), max(years)) if years else None
-
-
-def _compare(value: float, written: str, fact: float) -> Status | None:
-    decimals = len(written.split(".")[1]) if "." in written else 0
-    if round(fact, decimals) == value:
-        return "match"
-    if fact and abs(value - fact) / abs(fact) <= CLOSE:
-        return "close"
-    return None
-
-
-def check_numbers(
-    text: str,
-    metadata: dict[str, Any] | None,
-    *,
-    sample: str | None = None,
-    references: dict[str, str | None] | None = None,
-) -> list[NumberCheck]:
-    """
-    Check every number of a description against a profile
-
-    A number matches when the profile states it (row and column counts, distinct counts,
-    extremes, means, value ranges, missing-value percentages) up to the precision it is written
-    with, and is close within 2%. A year matches when it falls within the dataset's dates. Numbers
-    that appear in the sample or in a reference text (the dataset name, the original description)
-    match that text. Everything else is missing: not necessarily wrong, but worth checking.
-
-    Args:
-        text: Description
-        metadata: Output of ``autoddg.profiling.profile_metadata``
-        sample: CSV sample given to the model
-        references: Other texts to look for numbers in, by label
-
-    Returns:
-        One check per number, in order
-    """
-    metadata = metadata or {}
-    facts = _facts(metadata)
-    percentages = _percentages(metadata)
-    span = _year_span(metadata)
-    column_names = " ".join(str(c.get("name", "")) for c in metadata.get("columns", []))
-    texts = {"sample": sample, "column names": column_names, **(references or {})}
-    # Any digits count here: values of a sample or a name also sit inside identifiers, dates and
-    # snake_case words (2018_central_park)
-    in_texts = {
-        label: {float(n.replace(",", "")) for n in _ANY_NUMBER.findall(content or "")}
-        for label, content in texts.items()
-    }
-
-    checks = []
-    for match, value, percent in _numbers(text):
-        written = match.group(1).replace(",", "")
-        status: Status = "missing"
-        source = ""
-        is_year = not percent and "," not in match.group(1) and value.is_integer()
-        is_year = is_year and _YEARS[0] <= value <= _YEARS[1]
-        if is_year and span and span[0] <= value <= span[1]:
-            status, source = "match", f"within the dates ({span[0]}–{span[1]})"
-        else:
-            candidates = percentages if percent else facts
-            for fact, fact_source in candidates:
-                found = _compare(value, written, fact)
-                if is_year and found == "close":  # 2023 is not "close" to a value of 2,024.6
-                    continue
-                if found == "match" or (found == "close" and status == "missing"):
-                    status, source = found, f"{fact_source}: {fact:,.10g}"
-                    if found == "match":
-                        break
-        if status == "missing":
-            for label, numbers in in_texts.items():
-                if value in numbers:
-                    status, source = "match", f"in the {label}"
-                    break
-        checks.append(
-            NumberCheck(match.group(0), match.start(), match.end(), value, status, source)
-        )
-    return checks
+from .description.record import DatasetDescription
+from .evaluation.numbers import NumberCheck, check_description
 
 
 def _highlight(text: str, checks: list[NumberCheck]) -> str:
@@ -227,8 +35,10 @@ def _details(summary: str, body: str | None, pre: bool = True) -> str:
     return f"<details><summary>{summary}</summary>{content}</details>"
 
 
-def _entry_html(entry: ReportEntry, index: int) -> str:
-    missing = sum(check.status == "missing" for check in entry.checks)
+def _entry_html(
+    entry: DatasetDescription, checks: list[NumberCheck], link: str | None, index: int
+) -> str:
+    missing = sum(check.status == "missing" for check in checks)
     meta = entry.metadata or {}
     facts = []
     if "nb_rows" in meta:
@@ -239,12 +49,12 @@ def _entry_html(entry: ReportEntry, index: int) -> str:
         facts.append(f"{meta.get('nb_profiled_rows', 0):,} profiled")
     if entry.topic:
         facts.append(f"topic: {html.escape(entry.topic)}")
-    if entry.profile_report_url:
-        facts.append(f'<a href="{html.escape(entry.profile_report_url)}">profile report</a>')
+    if link:
+        facts.append(f'<a href="{html.escape(link)}">profile report</a>')
     badge = (
         f'<span class="badge missing">{missing} number{"s" * (missing != 1)} to check</span>'
         if missing
-        else '<span class="badge match">numbers check out</span>' if entry.checks else ""
+        else '<span class="badge match">numbers check out</span>' if checks else ""
     )
     original = (
         f"<p>{html.escape(entry.original_description)}</p>"
@@ -252,18 +62,7 @@ def _entry_html(entry: ReportEntry, index: int) -> str:
         else '<p class="none">No original description.</p>'
     )
     search = (
-        _highlight(
-            entry.search_description,
-            check_numbers(
-                entry.search_description,
-                entry.metadata,
-                sample=entry.dataset_sample,
-                references={
-                    "dataset name": entry.name,
-                    "original description": entry.original_description,
-                },
-            ),
-        )
+        _highlight(entry.search_description, check_description(entry, entry.search_description))
         if entry.search_description
         else None
     )
@@ -275,7 +74,7 @@ def _entry_html(entry: ReportEntry, index: int) -> str:
   </header>
   <div class="columns">
     <div><h3>Original</h3>{original}</div>
-    <div><h3>Generated</h3><p>{_highlight(entry.description, entry.checks)}</p></div>
+    <div><h3>Generated</h3><p>{_highlight(entry.description, checks)}</p></div>
   </div>
   {_details("Search-expanded description", f"<p>{search}</p>" if search else None, pre=False)}
   {_details("Profile given to the model", entry.profile_text)}
@@ -333,28 +132,47 @@ class DescriptionReport:
     """
     Standalone HTML page for reviewing a batch of generated descriptions
 
+    Each dataset's generated description is shown next to its original one, with every number
+    checked against the profile (see ``autoddg.evaluation.check_description``), and the inputs it
+    was built from one click away.
+
+    Args:
+        records: Outputs of ``AutoDDG.describe_dataframe``
+        title: Page title
+        links: Optional link per dataset name, e.g. to its atlas-profiler report
+
     Examples:
-        >>> report = DescriptionReport([ReportEntry(name="trips", description=text, metadata=m)])
-        >>> report.save("descriptions.html")
+        >>> records = [ddg.describe_dataframe(df, title="Taxi trips") for df in frames]
+        >>> DescriptionReport(records).save("descriptions.html")
     """
 
-    def __init__(self, entries: list[ReportEntry], title: str = "Dataset descriptions") -> None:
-        self.entries = entries
+    def __init__(
+        self,
+        records: list[DatasetDescription],
+        title: str = "Dataset descriptions",
+        links: dict[str, str] | None = None,
+    ) -> None:
+        self.records = records
         self.title = title
+        self.links = links or {}
+        self.checks = [check_description(record) for record in records]
 
     def to_html(self) -> str:
         """Render the page"""
-        checks = [check for entry in self.entries for check in entry.checks]
+        checks = [check for record_checks in self.checks for check in record_checks]
         counts = {s: sum(c.status == s for c in checks) for s in ("match", "close", "missing")}
-        flagged = sum(any(c.status == "missing" for c in e.checks) for e in self.entries)
-        entries = "".join(_entry_html(entry, i) for i, entry in enumerate(self.entries))
+        flagged = sum(any(c.status == "missing" for c in cs) for cs in self.checks)
+        entries = "".join(
+            _entry_html(record, record_checks, self.links.get(record.name), i)
+            for i, (record, record_checks) in enumerate(zip(self.records, self.checks, strict=True))
+        )
         return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(self.title)}</title><style>{_CSS}</style></head>
 <body><main>
 <h1>{html.escape(self.title)}</h1>
-<p class="lede">{len(self.entries)} datasets · {len(checks)} numbers in the generated
+<p class="lede">{len(self.records)} datasets · {len(checks)} numbers in the generated
 descriptions: {counts["match"]} found in the profile, {counts["close"]} close,
 {counts["missing"]} not found ({flagged} dataset{"s" * (flagged != 1)} to check).</p>
 <div class="controls">

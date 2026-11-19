@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .base import BaseEvaluator
+from .numbers import NumberCheck, check_description, check_numbers
 from .openai import GPTEvaluator, LLaMAEvaluator
 from .pairwise import (
     GPT4oMiniPairwiseEvaluator,
@@ -11,6 +12,9 @@ from .pairwise import (
 
 __all__ = [
     "BaseEvaluator",
+    "NumberCheck",
+    "check_description",
+    "check_numbers",
     "GPTEvaluator",
     "LLaMAEvaluator",
     "PairwiseEvaluator",
