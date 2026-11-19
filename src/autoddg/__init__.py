@@ -12,6 +12,7 @@ from .evaluation import (
 )
 from .llm import ClaudeCodeClient, CodexClient, LLMClient, LocalLLMClient, OpenAICompatibleClient
 from .profiling import SemanticProfiler, profile_dataset
+from .report import DescriptionReport, ReportEntry
 from .topic import DatasetTopicGenerator
 
 __version__ = "0.1.2"
@@ -21,10 +22,12 @@ __all__ = [
     "ClaudeCodeClient",
     "CodexClient",
     "DatasetDescriptionGenerator",
+    "DescriptionReport",
     "DatasetTopicGenerator",
     "GPTEvaluator",
     "LLaMAEvaluator",
     "PairwiseEvaluator",
+    "ReportEntry",
     "GPT4oPairwiseEvaluator",
     "GPT4oMiniPairwiseEvaluator",
     "LLaMAPairwiseEvaluator",
