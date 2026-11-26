@@ -333,6 +333,15 @@ def test_coordinate_pairs():
     ]
     # corners in any order, longitude first
     assert pairs("between (68.29°W, 46.0°N) and (71.25°W, 42.01°N)")[0][1] == "match"
+    # one hemisphere for both ends
+    assert pairs("from 42.01 to 46 degrees North and 68.29 to 71.25 degrees West") == [
+        ("42.01", "match"),
+        ("46", "match"),
+        ("68.29", "match"),
+        ("71.25", "match"),
+    ]
+    assert pairs("between 68.29-71.25°E") == [("68.29", "missing"), ("71.25", "missing")]
+    assert pairs("a western edge at 71.25 degrees West") == [("71.25 ", "match")]
     assert pairs("from 42.01°N, 71.25°W to 47.00°N, 68.29°W") == [
         ("42.01", "missing"),
         ("71.25", "match"),

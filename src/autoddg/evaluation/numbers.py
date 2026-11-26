@@ -17,8 +17,9 @@ What is checked:
 - percentages against missing-value ratios and against values (also when stored as fractions)
 - "17.5 million" and "3 billion" at the precision they are written with (17.5 million matches
   17,482,113)
-- coordinates written with hemispheres: 89.1°W is -89.1, and "42.0°N, 71.3°W to 46.0°N,
-  68.3°W" is a latitude range and a longitude range
+- coordinates written with hemispheres: 89.1°W (or 89.1 degrees West) is -89.1, "54 to 141
+  degrees West" is -141 to -54, and "42.0°N, 71.3°W to 46.0°N, 68.3°W" is a latitude range and
+  a longitude range
 - years within the dates of the dataset, and anything that appears in the sample, the column
   names or a reference text (dataset name, original description)
 
@@ -70,7 +71,13 @@ _RANGE = re.compile(
 _WORD_SEPARATOR = re.compile(r"\b(?:and|to|through|until)\b", re.IGNORECASE)
 # Coordinates written with a hemisphere: 89.1°W is -89.1. Rewritten in place, padded with spaces
 # so positions don't move
-_HEMISPHERE = re.compile(r"(?<![\w.\-])(\d+(?:\.\d+)?)\s?°\s?([NSEW])(?![A-Za-z])")
+_HEMISPHERES = r"(North|South|East|West|[NSEW])(?![A-Za-z])"
+_DEGREES = r"\s?(?:°|degrees?\s)\s?"
+_HEMISPHERE = re.compile(rf"(?<![\w.\-])(\d+(?:\.\d+)?){_DEGREES}{_HEMISPHERES}")
+# One hemisphere for both ends: "54 to 141 degrees West", "22-24°N"
+_HEMISPHERE_RANGE = re.compile(
+    rf"(?<![\w.\-])(\d+(?:\.\d+)?)°?\s*(?:-|to|through|and)\s*(\d+(?:\.\d+)?){_DEGREES}{_HEMISPHERES}"
+)
 # Two points, each a latitude and a longitude in either order: "42.0°N, 71.3°W to 46.0°N, 68.3°W"
 _COORD = r"(\d+(?:\.\d+)?)\s?°\s?([NSEW])"
 _POINT = rf"{_COORD}\s*,?\s*{_COORD}"
@@ -156,7 +163,7 @@ def _signed_coordinates(text: str) -> str:
     """89.1°W -> "-89.1  ", 42°N -> "42  ": same length, so positions still index the original"""
 
     def rewrite(match: re.Match[str]) -> str:
-        number = ("-" if match.group(2) in "SW" else "") + match.group(1)
+        number = ("-" if match.group(2)[0] in "SW" else "") + match.group(1)
         return number.ljust(len(match.group(0)))
 
     return _HEMISPHERE.sub(rewrite, text).replace("°", " ")
@@ -387,8 +394,23 @@ def check_numbers(
             )
         add(d.start, d.end, _timestamp(d.first), status, source)
 
-    # 2. Ranges of two numbers: coordinate pairs first, then plain ranges
-    for match in _POINT_RANGE.finditer(text.translate(_NORMALIZE)):
+    def coordinate_range(ends: list[tuple[float, str, int, int]]) -> None:
+        (low, low_text, *_), (high, high_text, *_) = sorted(ends)
+        status: Status = "missing"
+        source = "no column has this range"
+        for lo, hi, name in ranges:
+            found = (_compare(low, low_text, lo), _compare(high, high_text, hi))
+            if found == ("match", "match"):
+                status, source = "match", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
+                break
+            if None not in found and status == "missing":
+                status, source = "close", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
+        for value, _, start, end in ends:
+            add(start, end, value, status, source)
+
+    # 2. Ranges of two numbers: coordinates first, then plain ranges
+    plain = text.translate(_NORMALIZE)
+    for match in _POINT_RANGE.finditer(plain):
         groups = [
             (match.start(g), match.end(g), match.group(g), match.group(g + 1).upper())
             for g in (2, 4, 6, 8)
@@ -400,17 +422,17 @@ def check_numbers(
         if any(len(ends) != 2 for ends in axes.values()):
             continue  # "42°N, 46°N": not two points
         for ends in axes.values():
-            (low, low_text, *_), (high, high_text, *_) = sorted(ends)
-            status, source = "missing", "no column has this range"
-            for lo, hi, name in ranges:
-                found = (_compare(low, low_text, lo), _compare(high, high_text, hi))
-                if found == ("match", "match"):
-                    status, source = "match", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
-                    break
-                if None not in found and status == "missing":
-                    status, source = "close", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
-            for value, _, start, end in ends:
-                add(start, end, value, status, source)
+            coordinate_range(ends)
+    for match in _HEMISPHERE_RANGE.finditer(plain):
+        if not free(match.start(1), match.end(2)):
+            continue
+        sign = -1 if match.group(3)[0].upper() in "SW" else 1
+        coordinate_range(
+            [
+                (sign * _number(match.group(g)), match.group(g), match.start(g), match.end(g))
+                for g in (1, 2)
+            ]
+        )
 
     for match in _RANGE.finditer(normalized):
         if not free(match.start("low"), match.end("high")):
