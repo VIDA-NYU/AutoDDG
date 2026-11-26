@@ -41,9 +41,9 @@ def _entry_html(
     missing = sum(check.status == "missing" for check in checks)
     meta = entry.metadata or {}
     facts = []
-    if "nb_rows" in meta:
+    if meta.get("nb_rows") is not None:
         facts.append(f"{meta['nb_rows']:,} rows")
-    if "nb_columns" in meta:
+    if meta.get("nb_columns") is not None:
         facts.append(f"{meta['nb_columns']} columns")
     if meta.get("sampled"):
         facts.append(f"{meta.get('nb_profiled_rows', 0):,} profiled")

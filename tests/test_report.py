@@ -110,6 +110,8 @@ def test_page_marks_numbers_and_escapes_text():
     assert "fountains &lt;b&gt;" in page and "Fountains &amp; more" in page
     assert 'href="reports/fountains.html"' in page
     assert "1 numbers to check" not in page and "1 number to check" in page
+    unknown = DatasetDescription(name="d", description="12 rows", metadata={"nb_rows": None})
+    assert '<p class="facts"></p>' in DescriptionReport([unknown]).to_html()  # filled by hand
 
 
 class ScriptedClient(LLMClient):
@@ -224,6 +226,45 @@ def test_percentages_can_be_stored_as_fractions():
     ]
 
 
+COORDINATES = {
+    "columns": [
+        {"name": "longitude", "minimum": -160.0, "maximum": 178.0},
+        {"name": "latitude", "minimum": -56.0, "maximum": 70.0},
+        {"name": "x", "minimum": -92.5, "maximum": -89.1},
+    ],
+}
+
+
+def coordinates(text, **kwargs):
+    return [(c.text, c.status) for c in check_numbers(text, COORDINATES, **kwargs)]
+
+
+def test_negative_numbers_are_checked():
+    # both ends of a range with a negative end, not just the positive one
+    assert coordinates("longitudes from -160 to 178, latitudes from -56 to 70") == [
+        ("-160", "match"),
+        ("178", "match"),
+        ("-56", "match"),
+        ("70", "match"),
+    ]
+    assert coordinates("between -92.5 and -89.1") == [("-92.5", "match"), ("-89.1", "match")]
+    assert coordinates("longitudes from -150 to 178") == [("-150", "missing"), ("178", "missing")]
+    assert coordinates("a low of -56") == [("-56", "match")]
+    assert coordinates("a low of -57") == [("-57", "missing")]
+    assert coordinates("-12 in the sample", sample="a,-12\n") == [("-12", "match")]
+
+
+def test_coordinates_with_hemispheres():
+    assert coordinates("from 89.1°W to 92.5°W") == [("89.1°", "match"), ("92.5°", "match")]
+    assert coordinates("from 56°S to 70°N") == [("56°", "match"), ("70", "match")]
+    assert coordinates("from 56°N to 70°N") == [("56", "missing"), ("70", "missing")]
+
+
+def test_dashes_are_not_minus_signs():
+    assert coordinates("COVID-19, 4-3 and 7-5") == []  # identifiers and lists, never -19 or -5
+    assert coordinates("from 70 to -56") == [("70", "match"), ("-56", "match")]  # high to low
+
+
 def test_value_clusters_do_not_support_numbers():
     assert check("about 2,000 segments") == [("2,000", "missing")]
 
@@ -253,3 +294,48 @@ def test_written_dates():
         ("9999-09-09", "match")
     ]
     assert check("designated in June 1990") == [("June 1990", "match")]
+
+
+def test_scale_words():
+    riders = {"name": "riders", "minimum": 1.2e6, "maximum": 3.4e9}
+    taxis = {"nb_rows": 17482113, "columns": [riders]}
+
+    def scaled(text):
+        return [(c.text, c.status) for c in check_numbers(text, taxis)]
+
+    assert scaled("about 17.5 million trips") == [("17.5 million", "match")]  # 17,482,113
+    assert scaled("17.4 million trips") == [("17.4 million", "close")]
+    assert scaled("from 1.2 million to 3.4 billion") == [("1.2", "match"), ("3.4", "match")]
+    # one scale word for both ends
+    assert scaled("from 1.2 to 3.4 million") == [
+        ("1.2", "missing"),
+        ("3.4", "missing"),
+    ]
+    assert scaled("a 2 million row sample") == [("2 million", "missing")]
+
+
+def test_coordinate_pairs():
+    bbox = {
+        "columns": [
+            {"name": "lat", "minimum": 42.01, "maximum": 46.0},
+            {"name": "lon", "minimum": -71.25, "maximum": -68.29},
+        ]
+    }
+
+    def pairs(text):
+        return [(c.text, c.status) for c in check_numbers(text, bbox)]
+
+    assert pairs("from 42.01°N, 71.25°W to 46.00°N, 68.29°W") == [
+        ("42.01", "match"),
+        ("71.25", "match"),
+        ("46.00", "match"),
+        ("68.29", "match"),
+    ]
+    # corners in any order, longitude first
+    assert pairs("between (68.29°W, 46.0°N) and (71.25°W, 42.01°N)")[0][1] == "match"
+    assert pairs("from 42.01°N, 71.25°W to 47.00°N, 68.29°W") == [
+        ("42.01", "missing"),
+        ("71.25", "match"),
+        ("47.00", "missing"),
+        ("68.29", "match"),
+    ]

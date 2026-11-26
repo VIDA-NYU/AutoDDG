@@ -15,6 +15,10 @@ What is checked:
 - dates ("May 14, 2020", "2016-03-22", "June 2021", and ranges of them) against each date
   column's earliest and latest dates
 - percentages against missing-value ratios and against values (also when stored as fractions)
+- "17.5 million" and "3 billion" at the precision they are written with (17.5 million matches
+  17,482,113)
+- coordinates written with hemispheres: 89.1°W is -89.1, and "42.0°N, 71.3°W to 46.0°N,
+  68.3°W" is a latitude range and a longitude range
 - years within the dates of the dataset, and anything that appears in the sample, the column
   names or a reference text (dataset name, original description)
 
@@ -26,7 +30,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
@@ -43,20 +47,43 @@ _YEARS = (1800, 2100)
 _NORMALIZE = str.maketrans(dict.fromkeys("‐‑‒–—―−", "-") | {" ": " ", " ": " "})
 
 _NUM = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?(?!\d)|\d+(?:\.\d+)?"
+# A minus sign only where it can't be a dash: "-73.9" and "from -5 to -3", not "COVID-19" or
+# "2005-2023" (the character before a sign must not be part of a word or number)
+_SIGNED = rf"-?(?:{_NUM})"
 _APPROX = r"(?:(?:about|roughly|approximately|around|nearly|almost|some)\s+)?"
 _PCT = r"(\s*(?:%|percent\b))?"
-# A number written in prose: 3,619 / 12.5 / 40%; not part of a word or of an identifier such as
-# COVID-19 or 18b
-_SINGLE = re.compile(rf"(?<![\w.\-/])({_NUM}){_PCT}(?![\w\-/]|\.\d)")
+_SCALES = {"thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12}
+_SCALE = r"(?:\s+(thousand|million|billion|trillion)\b)?"
+# A number written in prose: 3,619 / 12.5 / 40% / -73.9 / 17.5 million; not part of a word or of
+# an identifier such as COVID-19 or 18b
+_SINGLE = re.compile(
+    rf"(?<![\w.\-/])({_SIGNED}){_PCT}{_SCALE}(?![\w\-/]|\.\d)", re.IGNORECASE
+)
 _RANGE = re.compile(
-    rf"(?<![\w.\-/])(?:(between)\s+)?{_APPROX}\$?({_NUM}){_PCT}\s*"
-    rf"(?(1)and|(?:-|to|through|until))\s*{_APPROX}\$?({_NUM}){_PCT}(?![\w\-/]|\.\d)",
+    rf"(?<![\w.\-/])(?:(?P<between>between)\s+)?{_APPROX}\$?(?P<low>{_SIGNED})"
+    rf"(?P<low_pct>\s*(?:%|percent\b))?(?:\s+(?P<low_scale>thousand|million|billion|trillion)\b)?"
+    rf"\s*(?(between)and|(?:-|to|through|until))\s*{_APPROX}\$?(?P<high>{_SIGNED})"
+    rf"(?P<high_pct>\s*(?:%|percent\b))?(?:\s+(?P<high_scale>thousand|million|billion|trillion)\b)?"
+    r"(?![\w\-/]|\.\d)",
+    re.IGNORECASE,
+)
+_WORD_SEPARATOR = re.compile(r"\b(?:and|to|through|until)\b", re.IGNORECASE)
+# Coordinates written with a hemisphere: 89.1°W is -89.1. Rewritten in place, padded with spaces
+# so positions don't move
+_HEMISPHERE = re.compile(r"(?<![\w.\-])(\d+(?:\.\d+)?)\s?°\s?([NSEW])(?![A-Za-z])")
+# Two points, each a latitude and a longitude in either order: "42.0°N, 71.3°W to 46.0°N, 68.3°W"
+_COORD = r"(\d+(?:\.\d+)?)\s?°\s?([NSEW])"
+_POINT = rf"{_COORD}\s*,?\s*{_COORD}"
+_POINT_RANGE = re.compile(
+    rf"(?<![\w.\-])(?:(between)\s+)?\(?{_POINT}\)?\s*(?(1)and|(?:-|to|through|until))\s*"
+    rf"\(?{_POINT}\)?(?![A-Za-z])",
     re.IGNORECASE,
 )
 _HEDGED = re.compile(
     r"(?:about|roughly|approximately|around|nearly|almost|some)\s+\$?$", re.IGNORECASE
 )
 _ANY_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?!\d)|\d+(?:\.\d+)?")
+_NEGATIVE = re.compile(r"(?<![\w.])-(\d{1,3}(?:,\d{3})+(?!\d)|\d+(?:\.\d+)?)")
 _LOWER = re.compile(
     r"(?:over|more than|above|exceeds?|exceeding|at least|upwards of)\s+" + _APPROX + r"\$?$",
     re.IGNORECASE,
@@ -121,16 +148,34 @@ def _fmt(value: float) -> str:
 
 
 def _day(timestamp: float) -> date:
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc).date()
+    # not datetime.fromtimestamp: it fails on dates before 1970 on Windows
+    return (datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=timestamp)).date()
+
+
+def _signed_coordinates(text: str) -> str:
+    """89.1°W -> "-89.1  ", 42°N -> "42  ": same length, so positions still index the original"""
+
+    def rewrite(match: re.Match[str]) -> str:
+        number = ("-" if match.group(2) in "SW" else "") + match.group(1)
+        return number.ljust(len(match.group(0)))
+
+    return _HEMISPHERE.sub(rewrite, text).replace("°", " ")
+
+
+def _numbers_in(content: str) -> set[float]:
+    """Every number in a text, and the negative ones also with their sign"""
+    found = {_number(n) for n in _ANY_NUMBER.findall(content)}
+    return found | {-_number(n) for n in _NEGATIVE.findall(content)}
 
 
 def _timestamp(day: date) -> float:
     return datetime(day.year, day.month, day.day, tzinfo=timezone.utc).timestamp()
 
 
-def _compare(value: float, written: str, fact: float) -> Status | None:
+def _compare(value: float, written: str, fact: float, scale: float = 1.0) -> Status | None:
+    """value is written as ``written`` times ``scale`` ("17.5" million)"""
     decimals = len(written.split(".")[1]) if "." in written else 0
-    if round(fact, decimals) == value:
+    if math.isclose(round(fact / scale, decimals), value / scale, rel_tol=1e-12, abs_tol=0):
         return "match"
     if fact and abs(value - fact) / abs(fact) <= CLOSE:
         return "close"
@@ -271,7 +316,7 @@ def check_numbers(
         One check per number or date, in order
     """
     metadata = metadata or {}
-    normalized = text.translate(_NORMALIZE)
+    normalized = _signed_coordinates(text.translate(_NORMALIZE))
     facts = _facts(metadata)
     percent_facts = _percent_facts(metadata, facts)
     ranges = _ranges(metadata)
@@ -282,10 +327,7 @@ def check_numbers(
     texts = {"sample": sample, "column names": column_names, **(references or {})}
     # Any digits count here: values of a sample or a name also sit inside identifiers, dates and
     # snake_case words (2018_central_park)
-    in_texts = {
-        label: {_number(n) for n in _ANY_NUMBER.findall(content or "")}
-        for label, content in texts.items()
-    }
+    in_texts = {label: _numbers_in(content or "") for label, content in texts.items()}
     raw_texts = {label: (content or "").translate(_NORMALIZE) for label, content in texts.items()}
 
     checks: list[NumberCheck] = []
@@ -345,15 +387,51 @@ def check_numbers(
             )
         add(d.start, d.end, _timestamp(d.first), status, source)
 
-    # 2. Ranges of two numbers
+    # 2. Ranges of two numbers: coordinate pairs first, then plain ranges
+    for match in _POINT_RANGE.finditer(text.translate(_NORMALIZE)):
+        groups = [
+            (match.start(g), match.end(g), match.group(g), match.group(g + 1).upper())
+            for g in (2, 4, 6, 8)
+        ]
+        axes: dict[str, list[tuple[float, str, int, int]]] = {"lat": [], "lon": []}
+        for start, end, written, hemisphere in groups:
+            value = -_number(written) if hemisphere in "SW" else _number(written)
+            axes["lat" if hemisphere in "NS" else "lon"].append((value, written, start, end))
+        if any(len(ends) != 2 for ends in axes.values()):
+            continue  # "42°N, 46°N": not two points
+        for ends in axes.values():
+            (low, low_text, *_), (high, high_text, *_) = sorted(ends)
+            status, source = "missing", "no column has this range"
+            for lo, hi, name in ranges:
+                found = (_compare(low, low_text, lo), _compare(high, high_text, hi))
+                if found == ("match", "match"):
+                    status, source = "match", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
+                    break
+                if None not in found and status == "missing":
+                    status, source = "close", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
+            for value, _, start, end in ends:
+                add(start, end, value, status, source)
+
     for match in _RANGE.finditer(normalized):
-        if not free(match.start(2), match.end(4)):
+        if not free(match.start("low"), match.end("high")):
             continue
-        low_text, high_text = match.group(2), match.group(4)
-        low, high = _number(low_text), _number(high_text)
-        if low >= high:  # "4-3" or a list, not a range
-            continue
-        is_years = all(
+        low_text, high_text = match.group("low"), match.group("high")
+        low_scale = _SCALES.get((match.group("low_scale") or "").lower(), 1.0)
+        high_scale = _SCALES.get((match.group("high_scale") or "").lower(), 1.0)
+        if low_scale != high_scale and match.group("low_scale") is None:
+            low_scale = high_scale  # "1.2 to 3.4 million"
+        low, high = _number(low_text) * low_scale, _number(high_text) * high_scale
+        low_end = match.end("low_pct") if match.group("low_pct") else match.end("low")
+        between = normalized[low_end : match.start("high")]
+        # "89.1°W to 92.5°W" is -89.1 to -92.5: a range written high to low. Only negative ends
+        # are read that way; "30% in 2013 to about 53%" is not a range
+        reversed_range = low > high and high < 0 and bool(_WORD_SEPARATOR.search(between))
+        if low >= high and not reversed_range:
+            continue  # "4-3" or a list, not a range
+        if reversed_range:
+            low_text, high_text, low, high = high_text, low_text, high, low
+            low_scale, high_scale = high_scale, low_scale
+        is_years = low_scale == high_scale == 1.0 and all(
             "," not in t and v.is_integer() and _YEARS[0] <= v <= _YEARS[1]
             for t, v in ((low_text, low), (high_text, high))
         )
@@ -377,27 +455,34 @@ def check_numbers(
                 )
         else:
             for lo, hi, name in ranges:
-                ends = (_compare(low, low_text, lo), _compare(high, high_text, hi))
+                ends = (
+                    _compare(low, low_text, lo, low_scale),
+                    _compare(high, high_text, hi, high_scale),
+                )
                 if ends == ("match", "match"):
                     status, source = "match", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
                     break
                 if None not in ends and status == "missing":
                     status, source = "close", f"range of {name}: {_fmt(lo)} to {_fmt(hi)}"
             if status == "missing":
-                literal = literal_in_references(normalized[match.start(2) : match.end(4)])
+                literal = literal_in_references(normalized[match.start("low") : match.end("high")])
                 if literal:
                     status, source = "match", literal
                 else:
                     near = [
                         f"{n}: {_fmt(lo)} to {_fmt(hi)}"
                         for lo, hi, n in ranges
-                        if _compare(low, low_text, lo) or _compare(high, high_text, hi)
+                        if _compare(low, low_text, lo, low_scale)
+                        or _compare(high, high_text, hi, high_scale)
                     ]
                     source = "no column has this range" + (
                         "; " + "; ".join(near[:3]) if near else ""
                     )
-        for group in (2, 4):
-            add(match.start(group), match.end(group), _number(match.group(group)), status, source)
+        for group, scale in (("low", low_scale), ("high", high_scale)):
+            if reversed_range:
+                scale = high_scale if group == "low" else low_scale
+            value = _number(match.group(group)) * scale
+            add(match.start(group), match.end(group), value, status, source)
 
     # 3. Single numbers
     for match in _SINGLE.finditer(normalized):
@@ -405,11 +490,12 @@ def check_numbers(
         if not free(start, end):
             continue
         written = match.group(1).replace(",", "")
-        value = _number(match.group(1))
+        scale = _SCALES.get((match.group(3) or "").lower(), 1.0)
+        value = _number(match.group(1)) * scale
         percent = bool(match.group(2))
         before = normalized[max(0, start - 40) : start]
         bound = "lower" if _LOWER.search(before) else "upper" if _UPPER.search(before) else None
-        is_year = not percent and "," not in match.group(1) and value.is_integer()
+        is_year = not percent and scale == 1.0 and "," not in match.group(1) and value.is_integer()
         is_year = is_year and _YEARS[0] <= value <= _YEARS[1]
         status = "missing"
         source = ""
@@ -439,7 +525,7 @@ def check_numbers(
             if status == "missing":
                 hedged = bool(_HEDGED.search(before))
                 for fact, fact_source, column in candidates:
-                    found = _compare(value, written, fact)
+                    found = _compare(value, written, fact, scale)
                     if is_year and found == "close":  # 2023 is not "close" to a value of 2,024.6
                         continue
                     if found == "close" and not nearby(column):
