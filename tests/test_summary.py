@@ -47,6 +47,19 @@ def test_dates_are_utc_and_span_the_whole_column():
     assert "from 1990-01-01 to 2020-01-01" in profile_dataset(pd.DataFrame({"d": yearly}))[1]
 
 
+def test_year_columns_get_their_years():
+    # atlas-profiler types a "year" column of bare years as a date but can't parse "2001"
+    frame = pd.DataFrame({"pillar": ["a", "b"] * 23, "year": sorted(list(range(2001, 2024)) * 2)})
+    metadata = profile_metadata(frame)
+    year = metadata["columns"][1]
+    if "http://schema.org/DateTime" in year["semantic_types"]:
+        assert pd.Timestamp(year["earliest"], unit="s").year == 2001
+        assert pd.Timestamp(year["latest"], unit="s").year == 2023
+        assert "from 2001-01-01 to 2023-01-01" in summarize(metadata)[1]
+    else:  # numeric: its extremes are the years
+        assert (year["minimum"], year["maximum"]) == (2001, 2023)
+
+
 def test_computed_fields_are_reported():
     # missing-value ratio, mean, standard deviation and semantic types were computed but dropped
     line = column_line(profile_dataset(pd.DataFrame({"v": [5.0] * 70 + [None] * 30}))[0])

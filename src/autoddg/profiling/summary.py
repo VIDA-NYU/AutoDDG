@@ -17,6 +17,7 @@ NUMERIC_TYPES = ("Integer", "Float")
 DATE_TIME = "http://schema.org/DateTime"
 NUMBER_BOUND = 3.4e38  # atlas-profiler ignores larger numbers
 DATE_CHECK_VALUES = 200  # bulk-parsed dates checked against atlas-profiler's own parser
+YEARS = (1000, 2999)  # a date column of bare 4-digit numbers in this range holds years
 
 
 def _plain_index(frame: DataFrame) -> bool:
@@ -45,6 +46,14 @@ def _date_extent(text: pandas.Series, sample_text: Any) -> tuple[float, float] |
     Returns:
         (earliest, latest) as UTC POSIX timestamps, or None when no value parses
     """
+    # Bare years ("2001"): atlas-profiler's parser reads none of them, so neither check below would
+    years = pandas.to_numeric(text, errors="coerce")
+    if len(text) and text.str.fullmatch(r"\d{4}").all() and years.between(*YEARS).all():
+        first, last = int(years.min()), int(years.max())
+        return (
+            datetime(first, 1, 1, tzinfo=timezone.utc).timestamp(),
+            datetime(last, 1, 1, tzinfo=timezone.utc).timestamp(),
+        )
     if len(text):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)  # "could not infer format"
