@@ -55,6 +55,18 @@ Alternatively, install directly via pip:
 pip install git+https://github.com/VIDA-NYU/AutoDDG@main
 ```
 
+**Data profiling** uses [atlas-profiler](https://github.com/VIDA-NYU/atlas-profiler) 0.1.0 or
+later. Until that version is on PyPI, `uv sync` installs it from GitHub (see `[tool.uv.sources]` in
+`pyproject.toml`); with pip, install it first:
+
+```bash
+pip install git+https://github.com/VIDA-NYU/atlas-profiler@feat/html-report
+```
+
+atlas-profiler depends on PyTorch for its optional spatial column classifier, so installs include
+`torch`. AutoDDG does not run the classifier unless you ask for it with
+`profile_dataframe(df, geo_classifier=True)`.
+
 **For local LLM support** (Qwen, Llama, etc.), install with optional dependencies:
 
 Using uv (recommended):
@@ -232,6 +244,44 @@ semantic_profile = autoddg.analyze_semantics(
 - Batch processing is only available for local LLMs
 - Group-prompting works with both API and local LLMs
 - Batch processing takes precedence over other modes if enabled
+
+### Describing a Frame in One Call and Reviewing the Results
+
+`describe_dataframe` runs the whole pipeline (profile, sample, topic, semantic profile,
+description, search expansion) and returns a `DatasetDescription` that keeps every intermediate
+result:
+
+```python
+import json
+from autoddg import AutoDDG, DescriptionReport, check_description
+
+record = autoddg.describe_dataframe(
+    df,
+    title="NYC Parks drinking fountains",
+    original_description=None,  # an existing description, if any, informs the topic
+    semantic_options={"use_group_prompting": True},
+)
+print(record.description)
+json.dump(record.to_dict(), open("fountains.json", "w"))  # DatasetDescription.from_dict reads it back
+```
+
+`check_description` looks up every number of a description in the dataset's profile (row and
+column counts, distinct counts, extremes, means, missing-value percentages, dates, column names)
+and marks it found, within 2%, or not found:
+
+```python
+for check in check_description(record):
+    print(check.text, check.status, check.source)
+# 3,619 match row count: 3,619
+```
+
+`DescriptionReport` renders a batch of records as one standalone HTML page for review: each
+generated description next to its original one, numbers highlighted by their check, and the
+profile, semantic profile, topic and prompt behind each description:
+
+```python
+DescriptionReport(records, title="Descriptions").save("descriptions.html")
+```
 
 ### Quick Jupyter Notebook Start
 

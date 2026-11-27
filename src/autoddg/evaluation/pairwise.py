@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import random
+import re
 from itertools import combinations
 from typing import Any, Literal
 
@@ -8,6 +10,13 @@ from beartype import beartype
 
 from ..utils import load_prompts
 from .base import BaseEvaluator
+
+logger = logging.getLogger(__name__)
+
+
+def _score(winner: str) -> float:
+    """Score of the first description of a pair: 1 for "A", 0 for "B", 0.5 for a tie"""
+    return {"A": 1.0, "B": 0.0}.get(winner, 0.5)
 
 
 @beartype
@@ -19,7 +28,7 @@ class PairwiseEvaluator(BaseEvaluator):
     Supports different sampling strategies for pair selection.
 
     Args:
-        client: OpenAI-compatible client instance
+        client: An ``LLMClient`` or an OpenAI-compatible client instance
         model_name: Model name to use for evaluation
     """
 
@@ -31,7 +40,7 @@ class PairwiseEvaluator(BaseEvaluator):
         self._system_message = pairwise_prompts["system_message"].strip()
         self._pairwise_template = pairwise_prompts["user_prompt"]
 
-    def compare(self, desc_a: str, desc_b: str) -> str:
+    def compare(self, desc_a: str, desc_b: str) -> Literal["A", "B", "tie"]:
         """
         Compare two descriptions and return which is better
 
@@ -40,28 +49,39 @@ class PairwiseEvaluator(BaseEvaluator):
             desc_b: Second description
 
         Returns:
-            "A" or "B" indicating which description is better
+            "A" or "B" for the better description, or "tie" when the answer names neither
+            or both (it is then counted as half a win for each)
         """
         user_content = self._pairwise_template.format(desc_a=desc_a, desc_b=desc_b)
+        answer = self._chat(user_content, temperature=0.0)
+        winner = self.parse_winner(answer)
+        if winner == "tie":
+            logger.warning("Pairwise judge gave no clear winner, counted as a tie: %r", answer)
+        return winner
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": self._system_message},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.0,
-        )
-        result = response.choices[0].message.content.strip().upper()
+    @staticmethod
+    def parse_winner(answer: str) -> Literal["A", "B", "tie"]:
+        """
+        Read the winner from a judge's answer
 
-        # Normalize response to "A" or "B"
-        if result.startswith("A"):
-            return "A"
-        elif result.startswith("B"):
-            return "B"
-        else:
-            # Default to A if unclear
-            return "A"
+        Accepts a bare letter with optional formatting ("B", "**B**", "B.") or an answer that
+        names exactly one of the capital letters A and B as a word ("Answer: B",
+        "Description B is better"). Anything else, including answers naming both, is a tie.
+
+        Args:
+            answer: Raw model answer
+
+        Returns:
+            "A", "B" or "tie"
+        """
+        stripped = re.sub(r"[^A-Za-z]", "", answer).upper()
+        if stripped in ("A", "B"):
+            return stripped
+        # Capital letters only: a lowercase "a" is usually the article
+        named = set(re.findall(r"\b([AB])\b", answer))
+        if len(named) == 1:
+            return named.pop()
+        return "tie"
 
     def compare_batch(
         self,
@@ -82,18 +102,13 @@ class PairwiseEvaluator(BaseEvaluator):
 
         Returns:
             Dictionary with results as list of (i, j, winner) tuples
-            where winner is "A" (description i) or "B" (description j)
+            where winner is "A" (description i), "B" (description j) or "tie"
         """
         pairs = self.sample_pairs(len(descriptions), strategy=strategy, max_pairs=max_pairs)
         results: list[tuple[int, int, str]] = []
 
         for i, j in pairs:
-            winner = self.compare(descriptions[i], descriptions[j])
-            # Convert "A"/"B" to index-based winner
-            if winner == "A":
-                results.append((i, j, "A"))
-            else:
-                results.append((i, j, "B"))
+            results.append((i, j, self.compare(descriptions[i], descriptions[j])))
 
         return {"overall": results}
 
@@ -134,7 +149,7 @@ class PairwiseEvaluator(BaseEvaluator):
         results: dict[str, list[tuple[int, int, str]]], n_desc: int
     ) -> dict[str, list[float]]:
         """
-        Compute win rates for each description
+        Compute win rates for each description (a tie counts as half a win)
 
         Args:
             results: Dictionary mapping aspect to list of (i, j, winner) tuples
@@ -145,13 +160,12 @@ class PairwiseEvaluator(BaseEvaluator):
         """
         win_rates: dict[str, list[float]] = {}
         for aspect, res in results.items():
-            wins = [0] * n_desc
+            wins = [0.0] * n_desc
             plays = [0] * n_desc
             for i, j, winner in res:
-                if winner == "A":
-                    wins[i] += 1
-                else:
-                    wins[j] += 1
+                s_i = _score(winner)
+                wins[i] += s_i
+                wins[j] += 1.0 - s_i
                 plays[i] += 1
                 plays[j] += 1
             win_rates[aspect] = [wins[k] / plays[k] if plays[k] else 0.0 for k in range(n_desc)]
@@ -186,7 +200,7 @@ class PairwiseEvaluator(BaseEvaluator):
             for i, j, winner in res:
                 r_i, r_j = ratings[i], ratings[j]
                 e_i = expect(r_i, r_j)
-                s_i = 1.0 if winner == "A" else 0.0
+                s_i = _score(winner)
                 s_j = 1.0 - s_i
                 ratings[i] += k * (s_i - e_i)
                 ratings[j] += k * (s_j - (1 - e_i))

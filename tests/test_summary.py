@@ -1,6 +1,6 @@
 """Statistical profiler (autoddg.profiling.summary)
 
-Each test names the upstream output it replaces (AutoDDG 0.1.2).
+Each test names the upstream output it replaces (AutoDDG 0.1.2, profiling with datamart).
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ import io
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from autoddg.profiling import profile_dataset, profile_metadata, summarize
 
@@ -46,6 +47,19 @@ def test_dates_are_utc_and_span_the_whole_column():
     assert "from 1990-01-01 to 2020-01-01" in profile_dataset(pd.DataFrame({"d": yearly}))[1]
 
 
+def test_year_columns_get_their_years():
+    # atlas-profiler types a "year" column of bare years as a date but can't parse "2001"
+    frame = pd.DataFrame({"pillar": ["a", "b"] * 23, "year": sorted(list(range(2001, 2024)) * 2)})
+    metadata = profile_metadata(frame)
+    year = metadata["columns"][1]
+    if "http://schema.org/DateTime" in year["semantic_types"]:
+        assert pd.Timestamp(year["earliest"], unit="s").year == 2001
+        assert pd.Timestamp(year["latest"], unit="s").year == 2023
+        assert "from 2001-01-01 to 2023-01-01" in summarize(metadata)[1]
+    else:  # numeric: its extremes are the years
+        assert (year["minimum"], year["maximum"]) == (2001, 2023)
+
+
 def test_computed_fields_are_reported():
     # missing-value ratio, mean, standard deviation and semantic types were computed but dropped
     line = column_line(profile_dataset(pd.DataFrame({"v": [5.0] * 70 + [None] * 30}))[0])
@@ -61,15 +75,37 @@ def test_integer_column_names():
     assert "Minimum 1, maximum 3." in profile_dataset(frame)[0]
 
 
-def test_large_frame_is_sampled_with_datamart_rule():
-    # datamart sampled files but profiled every row of a frame
-    metadata = profile_metadata(pd.DataFrame({"v": np.arange(1_000_000, dtype=float)}))
-    assert metadata["nb_rows"] == 1_000_000
-    assert metadata["sampled"] and metadata["nb_profiled_rows"] < 1_000_000
+def wide_frame(rows: int, columns: int = 100) -> pd.DataFrame:
+    """Over atlas-profiler's two million values when rows * columns exceeds them"""
+    return pd.DataFrame(
+        np.arange(rows, dtype=float)[:, None] + np.arange(columns),
+        columns=[f"c{i}" for i in range(columns)],
+    )
+
+
+def test_large_frame_is_sampled():
+    metadata = profile_metadata(wide_frame(21_000))
+    assert metadata["nb_rows"] == 21_000
+    assert metadata["sampled"] and metadata["nb_profiled_rows"] < 21_000
     assert "profiled a random sample of" in summarize(metadata)[0]
     small = profile_metadata(pd.DataFrame({"v": [1, 2, 3]}))
     assert small["nb_rows"] == 3 and not small["sampled"]
     assert "Rows: 3 (all rows profiled). Columns: 1." in summarize(small)[0]
+
+
+def test_extremes_and_missing_values_cover_every_row_of_a_sampled_frame():
+    frame = wide_frame(21_000)
+    frame.loc[20_999, "c0"] = 1e9  # a single row, likely left out of the sample
+    frame.loc[:2099, "c1"] = np.nan  # 10% missing
+    metadata = profile_metadata(frame)
+    assert metadata["sampled"]
+    assert metadata["columns"][0]["maximum"] == 1e9
+    assert metadata["columns"][1]["missing_values_ratio"] == pytest.approx(0.1)
+
+
+def test_dates_in_mixed_formats_fall_back_to_the_profiled_rows():
+    dates = ["2001-02-03", "March 4, 2002", "2003/05/06", "7 June 2004"] * 5
+    assert "from 2001-02-03 to 2004-06-07" in profile_dataset(pd.DataFrame({"d": dates}))[1]
 
 
 def test_caller_sampled_rows_are_marked():
@@ -77,14 +113,14 @@ def test_caller_sampled_rows_are_marked():
     assert metadata["nb_rows"] == 300 and metadata["sampled"]
 
 
-def test_index_turned_into_columns_as_datamart_does():
+def test_index_turned_into_columns_as_atlas_profiler_does():
     # a header shorter than its rows: pandas reads the extra leading fields as an index, which
-    # datamart turns into columns; the extremes must follow the same columns
+    # atlas-profiler turns into columns; the extremes must follow the same columns
     rows = ["a,b"] + [f"{i},{i % 7},{i * 2},{i * 3}" for i in range(2000)]
     frame = pd.read_csv(io.StringIO("\n".join(rows)))
     metadata = profile_metadata(frame)
     assert len(metadata["columns"]) == 4
     assert metadata["columns"][-1]["maximum"] == 1999 * 3
-    big = pd.concat([frame] * 1000)  # over 5 MB, so sampled; its index is not a row number
+    big = pd.concat([frame] * 300)  # over two million values, so sampled; not a row-number index
     sampled = profile_metadata(big)
     assert sampled["sampled"] and len(sampled["columns"]) == 4

@@ -5,11 +5,12 @@ from typing import Any
 from beartype import beartype
 from pandas import DataFrame
 
-from .description import DatasetDescriptionGenerator, SearchFocusedDescription
+from .description import DatasetDescription, DatasetDescriptionGenerator, SearchFocusedDescription
 from .evaluation import BaseEvaluator
 from .llm import LLMClient, LocalLLMClient, OpenAICompatibleClient
-from .profiling import SemanticProfiler, profile_dataset
+from .profiling import SemanticProfiler, profile_dataset, profile_metadata, summarize
 from .topic import DatasetTopicGenerator
+from .utils import get_sample
 
 
 @beartype
@@ -157,6 +158,69 @@ class AutoDDG:
         )
         self.evaluator = evaluator
 
+    def describe_dataframe(
+        self,
+        dataframe: DataFrame,
+        title: str,
+        original_description: str | None = None,
+        *,
+        sample_size: int = 100,
+        semantic_options: dict[str, Any] | None = None,
+        expand_for_search: bool = True,
+        geo_classifier: bool = False,
+    ) -> DatasetDescription:
+        """
+        Run the whole pipeline on a frame and keep every intermediate result
+
+        The steps of the quick-start notebook: profile every row, sample ``sample_size`` rows,
+        generate a topic, infer column semantics on the sample (joined with the profile's
+        coverage notes), describe the dataset, and expand the description for search.
+
+        Args:
+            dataframe: Input frame
+            title: Dataset title
+            original_description: Existing description, if any (it informs the topic)
+            sample_size: Rows sampled for the prompts and the semantic profile
+            semantic_options: Keyword arguments for ``analyze_semantics``, e.g.
+                ``{"use_group_prompting": True}``
+            expand_for_search: Also produce the search-expanded description
+            geo_classifier: Run atlas-profiler's spatial column classifier
+
+        Returns:
+            The description with its inputs, as a ``DatasetDescription``
+        """
+
+        metadata = profile_metadata(dataframe, geo_classifier=geo_classifier)
+        profile_text, coverage_notes = summarize(metadata)
+        sample_df, dataset_sample = get_sample(dataframe, sample_size)
+        topic = self.generate_topic(title, original_description, dataset_sample)
+        column_semantics = self.analyze_semantics(sample_df, **(semantic_options or {}))
+        semantic_profile = "\n".join(part for part in (coverage_notes, column_semantics) if part)
+        prompt, description = self.describe_dataset(
+            dataset_sample=dataset_sample,
+            dataset_profile=profile_text,
+            use_profile=True,
+            semantic_profile=semantic_profile,
+            use_semantic_profile=True,
+            data_topic=topic,
+            use_topic=True,
+        )
+        search_description = (
+            self.expand_description_for_search(description, topic)[1] if expand_for_search else None
+        )
+        return DatasetDescription(
+            name=title,
+            description=description,
+            original_description=original_description,
+            dataset_sample=dataset_sample,
+            metadata=metadata,
+            profile_text=profile_text,
+            semantic_profile=semantic_profile,
+            topic=topic,
+            prompt=prompt,
+            search_description=search_description,
+        )
+
     def describe_dataset(
         self,
         dataset_sample: str,
@@ -193,20 +257,24 @@ class AutoDDG:
             use_topic=use_topic,
         )
 
-    def profile_dataframe(self, dataframe: DataFrame) -> tuple[str, str]:
+    def profile_dataframe(
+        self, dataframe: DataFrame, *, geo_classifier: bool = False
+    ) -> tuple[str, str]:
         """
-        Summarise structure and coverage using the datamart profiler
+        Summarise structure and coverage using atlas-profiler
 
-        Ref: https://pypi.org/project/datamart-profiler/
+        Ref: https://github.com/VIDA-NYU/atlas-profiler
 
         Args:
             dataframe: Input frame
+            geo_classifier: Run atlas-profiler's spatial column classifier (loads PyTorch and
+                downloads its model on first use)
 
         Returns:
             (profile_text, semantic_notes)
         """
 
-        return profile_dataset(dataframe)
+        return profile_dataset(dataframe, geo_classifier=geo_classifier)
 
     def analyze_semantics(
         self,

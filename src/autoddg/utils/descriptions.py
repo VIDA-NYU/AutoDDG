@@ -37,7 +37,8 @@ def get_various_descriptions(
         verbose: Print progress if True
 
     Returns:
-        Mapping config_key -> {"prompt": str, "description": str}
+        Mapping config_key -> {"prompt": str, "description": str}; the baseline for each
+        temperature and length is under "baseline+temperature-<t>+num_words-<n>"
     """
     from autoddg.description import DatasetDescriptionGenerator
 
@@ -54,7 +55,9 @@ def get_various_descriptions(
             prompt, description = description_generator.generate_description(
                 dataset_sample=dataset_sample
             )
-            sub_data_descriptions["baseline"] = {
+            # One baseline (sample only) per temperature and length
+            baseline_key = f"baseline+temperature-{temperature}+num_words-{num_words}"
+            sub_data_descriptions[baseline_key] = {
                 "prompt": prompt,
                 "description": description,
             }

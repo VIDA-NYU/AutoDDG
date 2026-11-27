@@ -89,6 +89,10 @@ def downstream_task_rank(
     """
     BM25 ranking with nDCG@k over the inputted documents
 
+    Uses linear gain (relevance / log2(rank + 1)), unlike compute_ndcg's 2^relevance - 1. A
+    cut-off larger than the number of documents uses all of them, and nDCG is 0 when no
+    document is relevant.
+
     Args:
         documents: List of document texts
         query: Query string
@@ -100,10 +104,12 @@ def downstream_task_rank(
         Mapping k -> metrics
     """
 
-    def _compute_ndcg(relevance_true: list[float], relevance_test: list[float], k: int) -> float:
-        ideal_dcg = np.sum(np.array(relevance_true) / np.log2(np.arange(2, k + 2)))
-        dcg = np.sum(np.array(relevance_test) / np.log2(np.arange(2, k + 2)))
-        return float(dcg / ideal_dcg)
+    def _compute_ndcg(relevance_true: list[float], relevance_test: list[float]) -> float:
+        # Both lists are already cut to min(k, number of documents)
+        discounts = np.log2(np.arange(2, len(relevance_true) + 2))
+        ideal_dcg = float(np.sum(np.array(relevance_true) / discounts))
+        dcg = float(np.sum(np.array(relevance_test) / discounts))
+        return dcg / ideal_dcg if ideal_dcg > 0 else 0.0
 
     tokenized_corpus = [doc.lower().split() for doc in documents]
     bm25 = BM25Okapi(tokenized_corpus)
@@ -118,6 +124,6 @@ def downstream_task_rank(
 
     results: dict[int, dict[str, float]] = {}
     for k in ks:
-        ndcg = _compute_ndcg(sorted_rel_true[:k], sorted_rel_test[:k], k)
+        ndcg = _compute_ndcg(sorted_rel_true[:k], sorted_rel_test[:k])
         results[k] = {"ndcg": ndcg}
     return results

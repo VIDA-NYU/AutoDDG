@@ -180,8 +180,8 @@ class LocalLLMClient(LLMClient):
         response_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
 
         # Calculate token usage
-        total_tokens = outputs.shape[1]
-        completion_tokens = total_tokens - prompt_tokens
+        completion_tokens = len(generated_tokens)
+        total_tokens = prompt_tokens + completion_tokens
 
         return {
             "choices": [
@@ -252,20 +252,23 @@ class LocalLLMClient(LLMClient):
                     **kwargs,
                 )
 
-            # Decode responses
+            # Decode responses. With left padding every row of the input has the padded
+            # length, so the generated tokens of every row start at the same offset
+            input_length = inputs["input_ids"].shape[1]
             responses = []
             for i, (_prompt, prompt_tokens) in enumerate(
                 zip(prompts, prompt_token_counts, strict=True)
             ):
-                input_length = inputs["attention_mask"][i].sum().item()
                 generated_tokens = outputs[i][input_length:]
+                # Rows that stop early are padded on the right; drop the padding
+                if self.tokenizer.pad_token_id is not None:
+                    generated_tokens = generated_tokens[
+                        generated_tokens != self.tokenizer.pad_token_id
+                    ]
                 response_text = self.tokenizer.decode(
                     generated_tokens, skip_special_tokens=True
                 ).strip()
 
-                # Calculate token usage
-                # Note: outputs[i] includes both input and generated tokens
-                # input_length is the actual input length (excluding padding)
                 completion_tokens = len(generated_tokens)
                 total_tokens = prompt_tokens + completion_tokens
 
